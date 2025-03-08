@@ -39,12 +39,10 @@ void loop() {
   }
 
   // Print the distance to the Serial Monitor
-  Serial.print("Distance: ");
   if (distance == -1) {
     Serial.println("Out of range");
   } else {
-    Serial.print(distance);
-    Serial.println(" cm");
+    Serial.println(distance);
   }
 
   // Wait for a second before taking another measurement

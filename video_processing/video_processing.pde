@@ -1,51 +1,50 @@
-import processing.video.*;
-import processing.serial.*;
+import processing.serial.*;  // Import the serial library
 
-Serial myPort;  // Create object from Serial class
-Movie video;     // Movie object to play video
-int distance = 0;  // Distance read from Arduino
-float blurAmount = 0;  // Amount of blur to apply (float to allow decimal values)
+Serial myPort;  // Serial object to communicate with Arduino
+String incomingData = "";  // String to store incoming data
+PImage img;  // Image to be displayed
+int blurAmount = 0;  // Amount of blur to apply
 
 void setup() {
-  // Initialize serial communication
-  String portName = Serial.list()[0];  // Change index if necessary, e.g. [1] or [2]
-  myPort = new Serial(this, portName, 9600);
+  size(800, 600);  // Set the window size
+  img = loadImage("image.png");  // Load an image (place it in the data folder)
+  
+  // List available serial ports and open the correct one
+  String portName = Serial.list()[1];  // Choose the correct port (adjust if necessary)
+  myPort = new Serial(this, portName, 9600);  // Open serial port at 9600 baud rate
 
-  // Load video from "data" folder
-  video = new Movie(this, "video.mp4");  // Make sure to use the correct file name
-
-  // Check if the video is loaded
-  if (video != null) {
-    println("Video loaded successfully!");
-    video.loop();  // Loop the video
-  } else {
-    println("Failed to load the video.");
-  }
-
-  // Set the window size to match video resolution (adjust as needed)
-  size(480, 480);
+  println("Available ports:");
+  println(Serial.list());
 }
 
 void draw() {
-  // Read serial data
+  background(255);  // Clear the screen with a white background
+  
+  // Check if there’s data available from the Arduino
   if (myPort.available() > 0) {
-    String val = myPort.readStringUntil('\n');  // Read the incoming data until a newline character
-    if (val != null) {
-      distance = int(trim(val));  // Parse the distance value
+    incomingData = myPort.readStringUntil('\n');  // Read data until newline character
+    if (incomingData != null) {
+      incomingData = trim(incomingData);  // Remove any extra spaces
+      println("Distance from Arduino: " + incomingData + " cm");
+
+      // Convert distance to an integer
+      int distance = int(incomingData);
+      
+      // Map distance to blur amount (assuming 10cm is sharp, 100cm is maximum blur)
+      blurAmount = int(map(distance, 10, 100, 0, 10));  
+      blurAmount = constrain(blurAmount, 0, 10);  // Ensure blur is within limits
     }
   }
+  
+  // Apply blur effect
+  PImage blurredImg = img.copy();  // Create a copy of the original image
+  blurredImg.filter(BLUR, blurAmount);  // Apply blur effect
+  
+  // Display the image
+  image(blurredImg, 0, 0, width, height);
 
-  // Map the distance to blur intensity (0 to 10)
-  blurAmount = map(distance, 0, 400, 0, 10);  // Map the distance to a blur value (0 to 10)
-
-  // Display the video
-  image(video, 0, 0, width, height);
-
-  // Apply the blur effect
-  filter(BLUR, blurAmount);
-}
-
-// Handle video events
-void movieEvent(Movie m) {
-  m.read();  // Read the next video frame
+  // Display the incoming distance
+  fill(0);
+  textSize(32);
+  text("Distance: " + incomingData + " cm", 20, height - 50);
 }
