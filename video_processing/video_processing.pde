@@ -3,7 +3,7 @@ import processing.serial.*;  // Import the serial library
 Serial myPort;  // Serial object to communicate with Arduino
 String incomingData = "";  // String to store incoming data
 PImage img;  // Image to be displayed
-float blurAmount = 0;  // Amount of blur to apply (float for smooth transition)
+float blurAmount = 0;  // Current blur level (float for smooth transition)
 float targetBlur = 0;  // Target blur value from distance
 
 // Variables for dragging
@@ -13,7 +13,7 @@ float offsetX, offsetY;  // Mouse offset when dragging
 
 void setup() {
   size(1000, 1000);  // Set window size
-  img = loadImage("image.png");  // Load the image (make sure it's in the 'data' folder)
+  img = loadImage("image.png");  // Load the image (ensure it's in the 'data' folder)
 
   // Center the image initially
   imgX = width / 2 - 300;  // Center X (600px wide, so offset by 300)
@@ -41,26 +41,29 @@ void draw() {
       int distance = int(incomingData);
       
       // Map distance to a target blur amount (10cm = sharp, 100cm = max blur)
-      targetBlur = map(distance, 10, 100, 0, 10);
-      targetBlur = constrain(targetBlur, 0, 10);  // Ensure it stays within limits
+      targetBlur = map(distance, 10, 100, 0, 15);  // Increased max blur for a smoother effect
+      targetBlur = constrain(targetBlur, 0, 15);  // Ensure it stays within limits
     }
   }
   
   // Smoothly transition blur using interpolation
   blurAmount = lerp(blurAmount, targetBlur, 0.1);  // Adjust 0.1 for faster/slower transition
 
-  // Apply blur effect
+  // Apply blur effect with extra padding to prevent cutoff
   PImage blurredImg = img.copy();  // Create a copy of the original image
-  blurredImg.filter(BLUR, blurAmount);  // Apply smooth blur effect
+  int padding = int(blurAmount * 5);  // Add padding based on blur level
+  PImage expandedImg = createImage(img.width + padding, img.height + padding, ARGB);
+  expandedImg.copy(blurredImg, 0, 0, img.width, img.height, padding / 2, padding / 2, img.width, img.height);
+  expandedImg.filter(BLUR, blurAmount);  // Apply smooth blur effect
   
-  // Display the image at current position
-  image(blurredImg, imgX, imgY, 600, 600);
+  // Display the blurred image at its position
+  image(expandedImg, imgX - padding / 2, imgY - padding / 2, img.width + padding, img.height + padding);
 
-  // Display the distance text underneath the image
+  // Display the distance text **fixed** at the bottom
   fill(255);  // White text
   textSize(10);  // 10pt font size
-  textAlign(CENTER, CENTER);
-  text("Distance: " + incomingData + " cm", width / 2, imgY + 630); // Text below the image
+  textAlign(LEFT, LEFT);
+  text("Distance: " + incomingData + " cm", 10, 20); // At top left
 }
 
 // Mouse pressed - Check if clicking inside the image
