@@ -1,10 +1,14 @@
 import processing.serial.*;
+import java.io.File;
 
 Serial myPort;
 String incomingData = "";
-PImage img;
-PImage blurredImg;
+
+ArrayList<PImage> images = new ArrayList<PImage>();
+ArrayList<String> imageNames = new ArrayList<String>();
+int currentImageIndex = 0;
 PImage maskImg;
+
 float blurAmount = 0;
 float targetBlur = 0;
 float blurTransitionSpeed = 0.1;
@@ -23,16 +27,26 @@ float scaleAmount = 1.0;
 float targetScale = 1.0;
 float scaleTransitionSpeed = 0.1;
 
+// Fading parameters
+float alphaValue = 0;
+float fadeSpeed = 5.0; // Higher = faster fade
+int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
+int holdTime = 3000; // milliseconds to hold at full opacity
+int lastPhaseTime = 0;
+
 void setup() {
   size(1000, 1000, P2D);
-  img = loadImage("image.png");
+
+  loadImages();
+
   maskImg = loadImage("mask.png");
-  blurredImg = img.copy();
 
   resetCorners();
 
   String portName = Serial.list()[1];
   myPort = new Serial(this, portName, 9600);
+
+  lastPhaseTime = millis();
 
   println("Available ports:");
   println(Serial.list());
@@ -41,11 +55,30 @@ void setup() {
 void draw() {
   background(0);
 
+  handleSerial();
+
+  handleBlurAndScale();
+
+  handleImageTransition();
+
+  drawMask();
+
+  drawInfoPanel();
+
+  if (editingPerspective) {
+    drawBoundingBox();
+    drawControlPoints();
+    drawWarpedCircle();
+  } else {
+    resetStroke();
+  }
+}
+
+void handleSerial() {
   if (!editingPerspective && myPort.available() > 0) {
     incomingData = myPort.readStringUntil('\n');
     if (incomingData != null) {
       incomingData = trim(incomingData);
-      println("Distance from Arduino: " + incomingData + " cm");
 
       int currentDistance = int(incomingData);
 
@@ -56,7 +89,6 @@ void draw() {
       float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
       newTargetBlur = constrain(newTargetBlur, 0, 15);
 
-      // Scaling calculation: shrink to 80% when fully out of focus
       targetScale = map(newTargetBlur, 0, 15, 1.0, 0.8);
 
       if (abs(newTargetBlur - targetBlur) > 2) {
@@ -64,37 +96,110 @@ void draw() {
       }
     }
   }
+}
 
+void handleBlurAndScale() {
   if (!editingPerspective && abs(blurAmount - targetBlur) > 0.1) {
     blurAmount = lerp(blurAmount, targetBlur, blurTransitionSpeed);
-    blurredImg = img.copy();
-    blurredImg.filter(BLUR, blurAmount);
   }
 
   if (!editingPerspective && abs(scaleAmount - targetScale) > 0.001) {
     scaleAmount = lerp(scaleAmount, targetScale, scaleTransitionSpeed);
   }
+}
 
-  applyScaledWarpedTexture(blurredImg, scaleAmount);
-  applyWarpedTexture(maskImg);
+void handleImageTransition() {
+  if (images.size() == 0) return;
 
-  if (showInfo) {
-    fill(255);
-    textSize(10);
-    textAlign(LEFT, TOP);
-    text("Distance: " + incomingData + " cm", 10, 10);
-    text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
-    text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
-    text("Scale (image.png): " + nf(scaleAmount, 1, 3), 10, 55);
-    text("[Press 'C' to calibrate]\n[Press 'H' to hide this info]", 10, 70);
+  PImage currentImage = images.get(currentImageIndex);
+  PImage tempImg = currentImage.copy();
+
+  tempImg.filter(BLUR, blurAmount);
+
+  int now = millis();
+
+  switch (phase) {
+    case 0: // Fade in
+      alphaValue += fadeSpeed;
+      if (alphaValue >= 255) {
+        alphaValue = 255;
+        phase = 1;
+        lastPhaseTime = now;
+      }
+      break;
+
+    case 1: // Hold
+      if (now - lastPhaseTime > holdTime) {
+        phase = 2;
+      }
+      break;
+
+    case 2: // Fade out
+      alphaValue -= fadeSpeed;
+      if (alphaValue <= 0) {
+        alphaValue = 0;
+        nextImage();
+        phase = 0;
+      }
+      break;
   }
 
-  if (editingPerspective) {
-    drawBoundingBox();
-    drawControlPoints();
-    drawWarpedCircle();
-  } else {
-    resetStroke();
+  tint(255, alphaValue);
+  applyScaledWarpedTexture(tempImg, scaleAmount);
+  noTint();
+}
+
+void nextImage() {
+  currentImageIndex = (currentImageIndex + 1) % images.size();
+}
+
+void drawMask() {
+  applyWarpedTexture(maskImg);
+}
+
+void drawInfoPanel() {
+  if (!showInfo) return;
+
+  fill(255);
+  textSize(10);
+  textAlign(LEFT, TOP);
+
+  text("Distance: " + incomingData + " cm", 10, 10);
+  text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
+  text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
+  text("Scale (image.png): " + nf(scaleAmount, 1, 3), 10, 55);
+  text("Current Image: " + imageNames.get(currentImageIndex), 10, 70);
+  text("[Press 'C' to calibrate]\n[Press 'H' to hide this info]", 10, 85);
+
+  text("\nLoaded Images:", 10, 120);
+  for (int i = 0; i < imageNames.size(); i++) {
+    text((i + 1) + ": " + imageNames.get(i), 10, 140 + (i * 15));
+  }
+}
+
+void loadImages() {
+  File folder = new File(dataPath(""));
+  File[] files = folder.listFiles();
+
+  if (files == null) {
+    println("No files found in the data folder.");
+    return;
+  }
+
+  for (File file : files) {
+    String fileName = file.getName().toLowerCase();
+    if (fileName.endsWith(".png") && fileName.startsWith("image")) {
+      PImage img = loadImage(file.getName());
+      if (img != null) {
+        images.add(img);
+        imageNames.add(file.getName());
+        println("Loaded: " + file.getName());
+      }
+    }
+  }
+
+  if (images.size() == 0) {
+    println("No matching images found.");
   }
 }
 
