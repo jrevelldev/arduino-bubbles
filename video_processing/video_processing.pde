@@ -4,9 +4,11 @@ import java.io.File;
 Serial myPort;
 String incomingData = "";
 
+// Image and random selection
 ArrayList<PImage> images = new ArrayList<PImage>();
 ArrayList<String> imageNames = new ArrayList<String>();
-int currentImageIndex = 0;
+ArrayList<Integer> availableIndices = new ArrayList<Integer>();  // Indices available for random selection
+int currentImageIndex = -1; // Will get assigned after first random pick
 PImage maskImg;
 
 float blurAmount = 0;
@@ -39,6 +41,14 @@ void setup() {
 
   loadImages();
 
+  if (images.size() == 0) {
+    println("No images found! Exiting...");
+    exit();
+  }
+
+  resetImagePool();
+  nextRandomImage();  // Pick the first image to show!
+
   maskImg = loadImage("mask.png");
 
   resetCorners();
@@ -56,13 +66,10 @@ void draw() {
   background(0);
 
   handleSerial();
-
   handleBlurAndScale();
-
   handleImageTransition();
 
   drawMask();
-
   drawInfoPanel();
 
   if (editingPerspective) {
@@ -138,7 +145,7 @@ void handleImageTransition() {
       alphaValue -= fadeSpeed;
       if (alphaValue <= 0) {
         alphaValue = 0;
-        nextImage();
+        nextRandomImage();  // Pick a new random image after fade out
         phase = 0;
       }
       break;
@@ -149,8 +156,25 @@ void handleImageTransition() {
   noTint();
 }
 
-void nextImage() {
-  currentImageIndex = (currentImageIndex + 1) % images.size();
+void nextRandomImage() {
+  if (availableIndices.size() == 0) {
+    println("All images shown! Resetting sequence...");
+    resetImagePool();
+  }
+
+  int randomIndex = int(random(availableIndices.size()));
+  currentImageIndex = availableIndices.get(randomIndex);
+  availableIndices.remove(randomIndex);
+
+  println("Now showing: " + imageNames.get(currentImageIndex));
+}
+
+void resetImagePool() {
+  availableIndices.clear();
+  for (int i = 0; i < images.size(); i++) {
+    availableIndices.add(i);
+  }
+  println("Image pool reset!");
 }
 
 void drawMask() {
