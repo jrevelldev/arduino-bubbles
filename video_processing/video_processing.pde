@@ -13,7 +13,7 @@ int minCalibratedDistance = 10;
 final int maxDistance = 400;  
 
 boolean editingPerspective = false;  
-boolean showInfo = true;  // **New: Toggle text visibility**
+boolean showInfo = true;  
 
 PVector[] corners = new PVector[4];  
 int selectedCorner = -1;  
@@ -66,7 +66,6 @@ void draw() {
   applyWarpedTexture(blurredImg);
   applyWarpedTexture(maskImg);
 
-  // **Display info text only if showInfo is true**
   if (showInfo) {
     fill(255);
     textSize(10);
@@ -81,6 +80,8 @@ void draw() {
     drawBoundingBox();
     drawControlPoints();
     drawWarpedCircle();
+  } else {
+    resetStroke(); 
   }
 }
 
@@ -95,6 +96,8 @@ void applyWarpedTexture(PImage tex) {
 }
 
 void drawBoundingBox() {
+  if (!editingPerspective) return; 
+  
   stroke(255, 0, 0);
   strokeWeight(2);
   noFill();
@@ -106,6 +109,8 @@ void drawBoundingBox() {
 }
 
 void drawControlPoints() {
+  if (!editingPerspective) return; 
+  
   fill(255, 0, 0);
   noStroke();
   for (PVector corner : corners) {
@@ -113,8 +118,9 @@ void drawControlPoints() {
   }
 }
 
-// **New Function to Draw a Properly Warped Circle**
 void drawWarpedCircle() {
+  if (!editingPerspective) return;
+
   stroke(0, 255, 0);
   strokeWeight(2);
   noFill();
@@ -125,14 +131,14 @@ void drawWarpedCircle() {
     float x = cos(angle) * 200 + 500;  
     float y = sin(angle) * 200 + 500;
     
-    // Apply proper perspective mapping
     PVector warped = bilinearInterpolate(x, y);
     vertex(warped.x, warped.y);
   }
   endShape(CLOSE);
+
+  resetStroke();
 }
 
-// **Warp a point to match the distorted quadrilateral using bilinear interpolation**
 PVector bilinearInterpolate(float x, float y) {
   float u = map(x, 300, 700, 0, 1);  
   float v = map(y, 300, 700, 0, 1);  
@@ -141,6 +147,10 @@ PVector bilinearInterpolate(float x, float y) {
   float newY = lerp(lerp(corners[0].y, corners[1].y, u), lerp(corners[3].y, corners[2].y, u), v);
 
   return new PVector(newX, newY);
+}
+
+void resetStroke() {
+  noStroke(); 
 }
 
 void mousePressed() {
@@ -158,6 +168,7 @@ void mousePressed() {
     editingPerspective = true;
   } else {
     editingPerspective = false;  
+    resetStroke();  
   }
 }
 
@@ -188,10 +199,11 @@ void keyPressed() {
   }
   
   if (key == 'h' || key == 'H') {
-    showInfo = !showInfo;  // **Toggle text visibility**
+    showInfo = !showInfo;  
   }
 }
 
+// **Corrected Function: Detects if a point is inside the warped quadrilateral**
 boolean pointInQuad(float px, float py, PVector[] quad) {
   float sumAngles = 0;
   for (int i = 0; i < quad.length; i++) {
