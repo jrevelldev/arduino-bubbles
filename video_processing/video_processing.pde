@@ -1,39 +1,42 @@
 import processing.serial.*;
 import java.io.File;
 
+// Serial and sensor data
 Serial myPort;
 String incomingData = "";
 
-// Image and random selection
+// Images and random selection
 ArrayList<PImage> images = new ArrayList<PImage>();
 ArrayList<String> imageNames = new ArrayList<String>();
-ArrayList<Integer> availableIndices = new ArrayList<Integer>();  // Indices available for random selection
-int currentImageIndex = -1; // Will get assigned after first random pick
+ArrayList<Integer> availableIndices = new ArrayList<Integer>();
+int currentImageIndex = -1;
 PImage maskImg;
 
+// Blur & scaling
 float blurAmount = 0;
 float targetBlur = 0;
 float blurTransitionSpeed = 0.1;
 
-int minCalibratedDistance = 10;
-final int maxDistance = 400;
+int minCalibratedDistance = 10; // User calibrated min distance
+final int maxDistance = 400;    // Max distance (furthest)
 
+// UI & deformation
 boolean editingPerspective = false;
 boolean showInfo = true;
 
 PVector[] corners = new PVector[4];
 int selectedCorner = -1;
 
-// Scale parameters
+// Scaling values
 float scaleAmount = 1.0;
 float targetScale = 1.0;
 float scaleTransitionSpeed = 0.1;
 
-// Fading parameters
+// Fade between images
 float alphaValue = 0;
-float fadeSpeed = 5.0; // Higher = faster fade
+float fadeSpeed = 5.0;
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
-int holdTime = 3000; // milliseconds to hold at full opacity
+int holdTime = 3000; // milliseconds
 int lastPhaseTime = 0;
 
 void setup() {
@@ -47,7 +50,7 @@ void setup() {
   }
 
   resetImagePool();
-  nextRandomImage();  // Pick the first image to show!
+  nextRandomImage();
 
   maskImg = loadImage("mask.png");
 
@@ -82,25 +85,31 @@ void draw() {
 }
 
 void handleSerial() {
+  // Only read when not editing the perspective
   if (!editingPerspective && myPort.available() > 0) {
     incomingData = myPort.readStringUntil('\n');
+
+    int currentDistance = maxDistance; // Default behavior: 400 cm
+
     if (incomingData != null) {
       incomingData = trim(incomingData);
-
-      int currentDistance = int(incomingData);
-
-      if (minCalibratedDistance >= maxDistance) {
-        minCalibratedDistance = maxDistance - 1;
+      
+      try {
+        currentDistance = int(incomingData);  // Try parsing
+      } catch (Exception e) {
+        // Invalid data, use maxDistance
+        currentDistance = maxDistance;
       }
+    }
 
-      float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
-      newTargetBlur = constrain(newTargetBlur, 0, 15);
+    // Apply distance logic
+    float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
+    newTargetBlur = constrain(newTargetBlur, 0, 15);
 
-      targetScale = map(newTargetBlur, 0, 15, 1.0, 0.8);
+    targetScale = map(newTargetBlur, 0, 15, 1.0, 0.8);
 
-      if (abs(newTargetBlur - targetBlur) > 2) {
-        targetBlur = newTargetBlur;
-      }
+    if (abs(newTargetBlur - targetBlur) > 2) {
+      targetBlur = newTargetBlur;
     }
   }
 }
@@ -145,7 +154,7 @@ void handleImageTransition() {
       alphaValue -= fadeSpeed;
       if (alphaValue <= 0) {
         alphaValue = 0;
-        nextRandomImage();  // Pick a new random image after fade out
+        nextRandomImage();
         phase = 0;
       }
       break;
