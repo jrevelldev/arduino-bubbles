@@ -6,11 +6,20 @@ PImage img;  // Image to be displayed
 float blurAmount = 0;  // Amount of blur to apply (float for smooth transition)
 float targetBlur = 0;  // Target blur value from distance
 
+// Variables for dragging
+float imgX, imgY;  // Image position
+boolean dragging = false;  // Is the image being dragged?
+float offsetX, offsetY;  // Mouse offset when dragging
+
 void setup() {
-  size(600, 650);  // Set the window size (600px for image + extra space for text)
+  size(1000, 1000);  // Set window size
   img = loadImage("image.png");  // Load the image (make sure it's in the 'data' folder)
-  
-  // List available serial ports and open the correct one
+
+  // Center the image initially
+  imgX = width / 2 - 300;  // Center X (600px wide, so offset by 300)
+  imgY = height / 2 - 300;  // Center Y (600px high, so offset by 300)
+
+  // Set up serial communication
   String portName = Serial.list()[1];  // Choose the correct port (adjust if necessary)
   myPort = new Serial(this, portName, 9600);  // Open serial port at 9600 baud rate
 
@@ -44,12 +53,34 @@ void draw() {
   PImage blurredImg = img.copy();  // Create a copy of the original image
   blurredImg.filter(BLUR, blurAmount);  // Apply smooth blur effect
   
-  // Display the image centered
-  image(blurredImg, 0, 0, 600, 600);
+  // Display the image at current position
+  image(blurredImg, imgX, imgY, 600, 600);
 
   // Display the distance text underneath the image
   fill(255);  // White text
   textSize(10);  // 10pt font size
   textAlign(CENTER, CENTER);
-  text("Distance: " + incomingData + " cm", width / 2, height - 25);
+  text("Distance: " + incomingData + " cm", width / 2, imgY + 630); // Text below the image
+}
+
+// Mouse pressed - Check if clicking inside the image
+void mousePressed() {
+  if (mouseX > imgX && mouseX < imgX + 600 && mouseY > imgY && mouseY < imgY + 600) {
+    dragging = true;
+    offsetX = mouseX - imgX;
+    offsetY = mouseY - imgY;
+  }
+}
+
+// Mouse dragged - Move the image
+void mouseDragged() {
+  if (dragging) {
+    imgX = mouseX - offsetX;
+    imgY = mouseY - offsetY;
+  }
+}
+
+// Mouse released - Stop dragging
+void mouseReleased() {
+  dragging = false;
 }
