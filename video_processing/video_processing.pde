@@ -1,45 +1,30 @@
-import processing.serial.*;  // Import the serial library
+import processing.serial.*;  
 
-Serial myPort;  // Import Serial communication
-String incomingData = "";  // String to store incoming data
-PImage img;  // Original image
-PImage blurredImg;  // Pre-blurred image
-PImage maskImg;  // The mask overlay
-float blurAmount = 0;  // Current blur level (float for smooth transition)
-float targetBlur = 0;  // Target blur value from distance
+Serial myPort;  
+String incomingData = "";  
+PImage img;  
+PImage blurredImg;  
+PImage maskImg;  
+float blurAmount = 0;  
+float targetBlur = 0;  
 
-// Calibration Variables
-int minCalibratedDistance = 10;  // Default close distance (sharp)
-final int maxDistance = 400;  // Always the farthest distance (blurry)
+int minCalibratedDistance = 10;  
+final int maxDistance = 400;  
 
-// Variables for dragging
-float imgX, imgY;  // Image position
-boolean dragging = false;  // Is the image being dragged?
-boolean editingPerspective = false;  // Are we editing perspective?
-float offsetX, offsetY;  // Mouse offset when dragging
+boolean editingPerspective = false;  
 
-// Corner points for perspective deformation
-PVector[] corners = new PVector[4];
-int selectedCorner = -1;  // -1 means no corner is selected
+PVector[] corners = new PVector[4];  
+int selectedCorner = -1;  
 
 void setup() {
-  size(1000, 1000, P2D);  // Use P2D renderer for texture mapping
-  img = loadImage("image.png");  // Load the image
-  maskImg = loadImage("mask.png");  // Load the mask image
-  blurredImg = img.copy();  // Start with an initial blurred image
+  size(1000, 1000, P2D);  
+  img = loadImage("image.png");  
+  maskImg = loadImage("mask.png");  
+  blurredImg = img.copy();  
 
-  // Center the image initially
-  imgX = width / 2 - 300;
-  imgY = height / 2 - 300;
+  resetCorners();  
 
-  // Initialize the four corners of the image
-  corners[0] = new PVector(imgX, imgY);  // Top-left
-  corners[1] = new PVector(imgX + 600, imgY);  // Top-right
-  corners[2] = new PVector(imgX + 600, imgY + 600);  // Bottom-right
-  corners[3] = new PVector(imgX, imgY + 600);  // Bottom-left
-
-  // Set up serial communication
-  String portName = Serial.list()[1];  // Choose the correct port
+  String portName = Serial.list()[1];  
   myPort = new Serial(this, portName, 9600);  
 
   println("Available ports:");
@@ -49,8 +34,7 @@ void setup() {
 void draw() {
   background(0);
 
-  // Read Arduino distance only when new data arrives and if NOT dragging
-  if (!dragging && !editingPerspective && myPort.available() > 0) {
+  if (!editingPerspective && myPort.available() > 0) {
     incomingData = myPort.readStringUntil('\n');  
     if (incomingData != null) {
       incomingData = trim(incomingData);
@@ -58,12 +42,10 @@ void draw() {
 
       int currentDistance = int(incomingData);
       
-      // Ensure the calibration min is valid (less than max)
       if (minCalibratedDistance >= maxDistance) {
         minCalibratedDistance = maxDistance - 1;
       }
 
-      // Adjust blur based on new calibration
       float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
       newTargetBlur = constrain(newTargetBlur, 0, 15);
 
@@ -75,74 +57,72 @@ void draw() {
     }
   }
 
-  // Smoothly transition blur
-  if (!dragging && !editingPerspective) {
+  if (!editingPerspective) {
     blurAmount = lerp(blurAmount, targetBlur, 0.1);
   }
 
-  // Apply perspective distortion using beginShape() and texture()
-  beginShape();
-  texture(blurredImg);
-  vertex(corners[0].x, corners[0].y, 0, 0);  
-  vertex(corners[1].x, corners[1].y, blurredImg.width, 0);  
-  vertex(corners[2].x, corners[2].y, blurredImg.width, blurredImg.height);  
-  vertex(corners[3].x, corners[3].y, 0, blurredImg.height);  
-  endShape(CLOSE);
+  applyWarpedTexture(blurredImg);
+  applyWarpedTexture(maskImg);
 
-  // Draw the mask on top of the warped image
-  beginShape();
-  texture(maskImg);
-  vertex(corners[0].x, corners[0].y, 0, 0);
-  vertex(corners[1].x, corners[1].y, maskImg.width, 0);
-  vertex(corners[2].x, corners[2].y, maskImg.width, maskImg.height);
-  vertex(corners[3].x, corners[3].y, 0, maskImg.height);
-  endShape(CLOSE);
-
-  // Draw the distance text in the top-left
   fill(255);
   textSize(10);
   textAlign(LEFT, TOP);
   text("Distance: " + incomingData + " cm", 10, 10);
-  text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);  // Show calibrated value
+  text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
 
-  // Draw control points and red bounding box if editing perspective
   if (editingPerspective) {
-    stroke(255, 0, 0);  // Red outline
-    strokeWeight(2);
-    noFill();
-    beginShape();
-    for (PVector corner : corners) {
-      vertex(corner.x, corner.y);
-    }
-    endShape(CLOSE); 
-
-    // Draw control points
-    fill(255, 0, 0);
-    noStroke();
-    for (PVector corner : corners) {
-      ellipse(corner.x, corner.y, 10, 10);
-    }
+    drawBoundingBox();
+    drawControlPoints();
   }
 }
 
-// Mouse pressed - Start dragging or enter edit mode
-void mousePressed() {
-  if (pointInQuad(mouseX, mouseY, corners)) {
-    editingPerspective = true;
-  } else {
-    editingPerspective = false;
-  }
+void applyWarpedTexture(PImage tex) {
+  beginShape();
+  texture(tex);
+  vertex(corners[0].x, corners[0].y, 0, 0);
+  vertex(corners[1].x, corners[1].y, tex.width, 0);
+  vertex(corners[2].x, corners[2].y, tex.width, tex.height);
+  vertex(corners[3].x, corners[3].y, 0, tex.height);
+  endShape(CLOSE);
+}
 
+void drawBoundingBox() {
+  stroke(255, 0, 0);
+  strokeWeight(2);
+  noFill();
+  beginShape();
+  for (PVector corner : corners) {
+    vertex(corner.x, corner.y);
+  }
+  endShape(CLOSE);
+}
+
+void drawControlPoints() {
+  fill(255, 0, 0);
+  noStroke();
+  for (PVector corner : corners) {
+    ellipse(corner.x, corner.y, 10, 10);
+  }
+}
+
+void mousePressed() {
   selectedCorner = -1;
+
   for (int i = 0; i < corners.length; i++) {
     if (dist(mouseX, mouseY, corners[i].x, corners[i].y) < 10) {
       selectedCorner = i;
-      break;
+      editingPerspective = true;
+      return;
     }
+  }
+
+  if (pointInQuad(mouseX, mouseY, corners)) {
+    editingPerspective = true;
+  } else {
+    editingPerspective = false;  
   }
 }
 
-// Mouse dragged - Move a corner or the whole image
 void mouseDragged() {
   if (selectedCorner != -1) {
     corners[selectedCorner].x = mouseX;
@@ -150,22 +130,26 @@ void mouseDragged() {
   }
 }
 
-// Mouse released - Stop dragging
 void mouseReleased() {
   selectedCorner = -1;
 }
 
-// Keyboard pressed - Calibrate minimum distance
+void resetCorners() {
+  corners[0] = new PVector(200, 200);  
+  corners[1] = new PVector(800, 200);
+  corners[2] = new PVector(800, 800);
+  corners[3] = new PVector(200, 800);
+}
+
 void keyPressed() {
   if (key == 'c' || key == 'C') {
     if (incomingData != null && incomingData.length() > 0) {
-      minCalibratedDistance = int(incomingData);  // Set new calibration
+      minCalibratedDistance = int(incomingData);
       println("Calibrated Minimum Distance Set to: " + minCalibratedDistance + " cm");
     }
   }
 }
 
-// Utility function to check if a point is inside a quadrilateral
 boolean pointInQuad(float px, float py, PVector[] quad) {
   float sumAngles = 0;
   for (int i = 0; i < quad.length; i++) {
