@@ -8,6 +8,10 @@ PImage maskImg;  // The mask overlay
 float blurAmount = 0;  // Current blur level (float for smooth transition)
 float targetBlur = 0;  // Target blur value from distance
 
+// Calibration Variables
+int minCalibratedDistance = 10;  // Default close distance (sharp)
+final int maxDistance = 400;  // Always the farthest distance (blurry)
+
 // Variables for dragging
 float imgX, imgY;  // Image position
 boolean dragging = false;  // Is the image being dragged?
@@ -52,7 +56,15 @@ void draw() {
       incomingData = trim(incomingData);
       println("Distance from Arduino: " + incomingData + " cm");
 
-      float newTargetBlur = map(int(incomingData), 10, 100, 15, 0);
+      int currentDistance = int(incomingData);
+      
+      // Ensure the calibration min is valid (less than max)
+      if (minCalibratedDistance >= maxDistance) {
+        minCalibratedDistance = maxDistance - 1;
+      }
+
+      // Adjust blur based on new calibration
+      float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
       newTargetBlur = constrain(newTargetBlur, 0, 15);
 
       if (newTargetBlur != targetBlur) {
@@ -71,10 +83,10 @@ void draw() {
   // Apply perspective distortion using beginShape() and texture()
   beginShape();
   texture(blurredImg);
-  vertex(corners[0].x, corners[0].y, 0, 0);  // Top-left
-  vertex(corners[1].x, corners[1].y, blurredImg.width, 0);  // Top-right
-  vertex(corners[2].x, corners[2].y, blurredImg.width, blurredImg.height);  // Bottom-right
-  vertex(corners[3].x, corners[3].y, 0, blurredImg.height);  // Bottom-left
+  vertex(corners[0].x, corners[0].y, 0, 0);  
+  vertex(corners[1].x, corners[1].y, blurredImg.width, 0);  
+  vertex(corners[2].x, corners[2].y, blurredImg.width, blurredImg.height);  
+  vertex(corners[3].x, corners[3].y, 0, blurredImg.height);  
   endShape(CLOSE);
 
   // Draw the mask on top of the warped image
@@ -91,6 +103,7 @@ void draw() {
   textSize(10);
   textAlign(LEFT, TOP);
   text("Distance: " + incomingData + " cm", 10, 10);
+  text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);  // Show calibrated value
 
   // Draw control points and red bounding box if editing perspective
   if (editingPerspective) {
@@ -101,7 +114,7 @@ void draw() {
     for (PVector corner : corners) {
       vertex(corner.x, corner.y);
     }
-    endShape(CLOSE); // Close the bounding box
+    endShape(CLOSE); 
 
     // Draw control points
     fill(255, 0, 0);
@@ -114,14 +127,12 @@ void draw() {
 
 // Mouse pressed - Start dragging or enter edit mode
 void mousePressed() {
-  // Check if we are clicking inside the warped image
   if (pointInQuad(mouseX, mouseY, corners)) {
     editingPerspective = true;
   } else {
     editingPerspective = false;
   }
 
-  // Check if clicking on a control point
   selectedCorner = -1;
   for (int i = 0; i < corners.length; i++) {
     if (dist(mouseX, mouseY, corners[i].x, corners[i].y) < 10) {
@@ -142,6 +153,16 @@ void mouseDragged() {
 // Mouse released - Stop dragging
 void mouseReleased() {
   selectedCorner = -1;
+}
+
+// Keyboard pressed - Calibrate minimum distance
+void keyPressed() {
+  if (key == 'c' || key == 'C') {
+    if (incomingData != null && incomingData.length() > 0) {
+      minCalibratedDistance = int(incomingData);  // Set new calibration
+      println("Calibrated Minimum Distance Set to: " + minCalibratedDistance + " cm");
+    }
+  }
 }
 
 // Utility function to check if a point is inside a quadrilateral
