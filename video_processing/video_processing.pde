@@ -20,8 +20,8 @@ int selectedCorner = -1;  // -1 means no corner is selected
 
 void setup() {
   size(1000, 1000, P2D);  // Use P2D renderer for texture mapping
-  img = loadImage("image.png");  // Load the image (ensure it's in the 'data' folder)
-  maskImg = loadImage("mask.png");  // Load the mask image (ensure it's in the 'data' folder)
+  img = loadImage("image.png");  // Load the image
+  maskImg = loadImage("mask.png");  // Load the mask image
   blurredImg = img.copy();  // Start with an initial blurred image
 
   // Center the image initially
@@ -35,8 +35,8 @@ void setup() {
   corners[3] = new PVector(imgX, imgY + 600);  // Bottom-left
 
   // Set up serial communication
-  String portName = Serial.list()[1];  // Choose the correct port (adjust if necessary)
-  myPort = new Serial(this, portName, 9600);  // Open serial port at 9600 baud rate
+  String portName = Serial.list()[1];  // Choose the correct port
+  myPort = new Serial(this, portName, 9600);  
 
   println("Available ports:");
   println(Serial.list());
@@ -45,7 +45,7 @@ void setup() {
 void draw() {
   background(0);
 
-  // Read Arduino distance **only when new data arrives** and if NOT dragging
+  // Read Arduino distance only when new data arrives and if NOT dragging
   if (!dragging && !editingPerspective && myPort.available() > 0) {
     incomingData = myPort.readStringUntil('\n');  
     if (incomingData != null) {
@@ -92,9 +92,20 @@ void draw() {
   textAlign(LEFT, TOP);
   text("Distance: " + incomingData + " cm", 10, 10);
 
-  // Draw control points if editing perspective
+  // Draw control points and red bounding box if editing perspective
   if (editingPerspective) {
+    stroke(255, 0, 0);  // Red outline
+    strokeWeight(2);
+    noFill();
+    beginShape();
+    for (PVector corner : corners) {
+      vertex(corner.x, corner.y);
+    }
+    endShape(CLOSE); // Close the bounding box
+
+    // Draw control points
     fill(255, 0, 0);
+    noStroke();
     for (PVector corner : corners) {
       ellipse(corner.x, corner.y, 10, 10);
     }
