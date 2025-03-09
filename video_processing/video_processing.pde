@@ -13,6 +13,7 @@ int minCalibratedDistance = 10;
 final int maxDistance = 400;  
 
 boolean editingPerspective = false;  
+boolean showInfo = true;  // **New: Toggle text visibility**
 
 PVector[] corners = new PVector[4];  
 int selectedCorner = -1;  
@@ -65,12 +66,16 @@ void draw() {
   applyWarpedTexture(blurredImg);
   applyWarpedTexture(maskImg);
 
-  fill(255);
-  textSize(10);
-  textAlign(LEFT, TOP);
-  text("Distance: " + incomingData + " cm", 10, 10);
-  text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
-  text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
+  // **Display info text only if showInfo is true**
+  if (showInfo) {
+    fill(255);
+    textSize(10);
+    textAlign(LEFT, TOP);
+    text("Distance: " + incomingData + " cm", 10, 10);
+    text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
+    text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
+    text("[Press 'C' to calibrate]\n[Press 'H' to hide this info]", 10, 55);
+  }
 
   if (editingPerspective) {
     drawBoundingBox();
@@ -115,7 +120,7 @@ void drawWarpedCircle() {
   noFill();
   
   beginShape();
-  for (int i = 0; i < 360; i += 10) {  // Generate circle points
+  for (int i = 0; i < 360; i += 10) {  
     float angle = radians(i);
     float x = cos(angle) * 200 + 500;  
     float y = sin(angle) * 200 + 500;
@@ -180,6 +185,10 @@ void keyPressed() {
       minCalibratedDistance = int(incomingData);
       println("Calibrated Minimum Distance Set to: " + minCalibratedDistance + " cm");
     }
+  }
+  
+  if (key == 'h' || key == 'H') {
+    showInfo = !showInfo;  // **Toggle text visibility**
   }
 }
 
