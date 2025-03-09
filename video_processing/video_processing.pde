@@ -7,6 +7,7 @@ PImage blurredImg;
 PImage maskImg;  
 float blurAmount = 0;  
 float targetBlur = 0;  
+float blurTransitionSpeed = 0.1;  // Speed of blur adjustment
 
 int minCalibratedDistance = 10;  
 final int maxDistance = 400;  
@@ -49,16 +50,18 @@ void draw() {
       float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
       newTargetBlur = constrain(newTargetBlur, 0, 15);
 
-      if (newTargetBlur != targetBlur) {
+      // Apply gradual blur transition only if there is a significant change
+      if (abs(newTargetBlur - targetBlur) > 2) {  // Threshold to prevent small changes from triggering
         targetBlur = newTargetBlur;
-        blurredImg = img.copy();
-        blurredImg.filter(BLUR, targetBlur);
       }
     }
   }
 
-  if (!editingPerspective) {
-    blurAmount = lerp(blurAmount, targetBlur, 0.1);
+  // Gradually transition blur to the target value
+  if (abs(blurAmount - targetBlur) > 0.1) {  // Prevent unnecessary processing when close to target
+    blurAmount = lerp(blurAmount, targetBlur, blurTransitionSpeed);
+    blurredImg = img.copy();
+    blurredImg.filter(BLUR, blurAmount);
   }
 
   applyWarpedTexture(blurredImg);
@@ -69,6 +72,7 @@ void draw() {
   textAlign(LEFT, TOP);
   text("Distance: " + incomingData + " cm", 10, 10);
   text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
+  text("Blur: " + nf(blurAmount, 1, 2), 10, 40);  // Show blur value for debugging
 
   if (editingPerspective) {
     drawBoundingBox();
