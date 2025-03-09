@@ -108,7 +108,7 @@ void handleSerial() {
     float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
     newTargetBlur = constrain(newTargetBlur, 0, 15);
 
-    targetScale = map(newTargetBlur, 0, 15, 1.0, 0.8);
+    targetScale = map(newTargetBlur, 0, 15, 1.0, 1.1);
 
     if (abs(newTargetBlur - targetBlur) > 2) {
       targetBlur = newTargetBlur;
@@ -190,7 +190,7 @@ void resetImagePool() {
 
 void drawMask() {
   // Mask size difference between mask and image
-  float extraSize = 60; // 660 - 600
+  float extraSize = 100; // 700 - 600
   float offset = extraSize / 2.0; // 30 pixels on each side
 
   // Find center of the image
