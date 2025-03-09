@@ -7,7 +7,7 @@ PImage blurredImg;
 PImage maskImg;  
 float blurAmount = 0;  
 float targetBlur = 0;  
-float blurTransitionSpeed = 0.1;  // Speed of blur adjustment
+float blurTransitionSpeed = 0.1;  
 
 int minCalibratedDistance = 10;  
 final int maxDistance = 400;  
@@ -50,15 +50,13 @@ void draw() {
       float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
       newTargetBlur = constrain(newTargetBlur, 0, 15);
 
-      // Apply gradual blur transition only if there is a significant change
-      if (abs(newTargetBlur - targetBlur) > 2) {  // Threshold to prevent small changes from triggering
+      if (abs(newTargetBlur - targetBlur) > 2) {  
         targetBlur = newTargetBlur;
       }
     }
   }
 
-  // Gradually transition blur to the target value
-  if (abs(blurAmount - targetBlur) > 0.1) {  // Prevent unnecessary processing when close to target
+  if (!editingPerspective && abs(blurAmount - targetBlur) > 0.1) {  
     blurAmount = lerp(blurAmount, targetBlur, blurTransitionSpeed);
     blurredImg = img.copy();
     blurredImg.filter(BLUR, blurAmount);
@@ -72,11 +70,12 @@ void draw() {
   textAlign(LEFT, TOP);
   text("Distance: " + incomingData + " cm", 10, 10);
   text("Calibrated Min Distance: " + minCalibratedDistance + " cm", 10, 25);
-  text("Blur: " + nf(blurAmount, 1, 2), 10, 40);  // Show blur value for debugging
+  text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
 
   if (editingPerspective) {
     drawBoundingBox();
     drawControlPoints();
+    drawWarpedCircle();
   }
 }
 
@@ -107,6 +106,36 @@ void drawControlPoints() {
   for (PVector corner : corners) {
     ellipse(corner.x, corner.y, 10, 10);
   }
+}
+
+// **New Function to Draw a Properly Warped Circle**
+void drawWarpedCircle() {
+  stroke(0, 255, 0);
+  strokeWeight(2);
+  noFill();
+  
+  beginShape();
+  for (int i = 0; i < 360; i += 10) {  // Generate circle points
+    float angle = radians(i);
+    float x = cos(angle) * 200 + 500;  
+    float y = sin(angle) * 200 + 500;
+    
+    // Apply proper perspective mapping
+    PVector warped = bilinearInterpolate(x, y);
+    vertex(warped.x, warped.y);
+  }
+  endShape(CLOSE);
+}
+
+// **Warp a point to match the distorted quadrilateral using bilinear interpolation**
+PVector bilinearInterpolate(float x, float y) {
+  float u = map(x, 300, 700, 0, 1);  
+  float v = map(y, 300, 700, 0, 1);  
+
+  float newX = lerp(lerp(corners[0].x, corners[1].x, u), lerp(corners[3].x, corners[2].x, u), v);
+  float newY = lerp(lerp(corners[0].y, corners[1].y, u), lerp(corners[3].y, corners[2].y, u), v);
+
+  return new PVector(newX, newY);
 }
 
 void mousePressed() {
