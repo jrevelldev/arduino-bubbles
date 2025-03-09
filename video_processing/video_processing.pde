@@ -54,7 +54,7 @@ void setup() {
 
   maskImg = loadImage("mask.png");
 
-  resetCorners();
+  loadCorners();  // Load saved corners if they exist
 
   String portName = Serial.list()[1];
   myPort = new Serial(this, portName, 9600);
@@ -189,15 +189,12 @@ void resetImagePool() {
 }
 
 void drawMask() {
-  // Mask size difference between mask and image
   float extraSize = 100; // 700 - 600
-  float offset = extraSize / 2.0; // 30 pixels on each side
+  float offset = extraSize / 2.0;
 
-  // Find center of the image
   float centerX = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4.0;
   float centerY = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4.0;
 
-  // Offset mask corners outward from image corners
   PVector[] maskCorners = new PVector[4];
 
   for (int i = 0; i < 4; i++) {
@@ -213,7 +210,6 @@ void drawMask() {
     );
   }
 
-  // Draw the mask
   beginShape();
   texture(maskImg);
   vertex(maskCorners[0].x, maskCorners[0].y, 0, 0);
@@ -235,11 +231,11 @@ void drawInfoPanel() {
   text("Blur: " + nf(blurAmount, 1, 2), 10, 40);
   text("Scale (image.png): " + nf(scaleAmount, 1, 3), 10, 55);
   text("Current Image: " + imageNames.get(currentImageIndex), 10, 70);
-  text("[Press 'C' to calibrate]\n[Press 'H' to hide this info]", 10, 85);
+  text("[Press 'C' to calibrate]\n[Press 'H' to hide this info]\n[Press 'R' to reset corners]", 10, 85);
 
-  text("\nLoaded Images:", 10, 120);
+  text("\nLoaded Images:", 10, 130);
   for (int i = 0; i < imageNames.size(); i++) {
-    text((i + 1) + ": " + imageNames.get(i), 10, 140 + (i * 15));
+    text((i + 1) + ": " + imageNames.get(i), 10, 150 + (i * 15));
   }
 }
 
@@ -293,14 +289,39 @@ void applyScaledWarpedTexture(PImage tex, float scale) {
   endShape(CLOSE);
 }
 
-void applyWarpedTexture(PImage tex) {
-  beginShape();
-  texture(tex);
-  vertex(corners[0].x, corners[0].y, 0, 0);
-  vertex(corners[1].x, corners[1].y, tex.width, 0);
-  vertex(corners[2].x, corners[2].y, tex.width, tex.height);
-  vertex(corners[3].x, corners[3].y, 0, tex.height);
-  endShape(CLOSE);
+// CORNER SAVE/LOAD FUNCTIONS ------------------------
+
+void saveCorners() {
+  String[] lines = new String[corners.length];
+  for (int i = 0; i < corners.length; i++) {
+    lines[i] = corners[i].x + "," + corners[i].y;
+  }
+  saveStrings("corners.txt", lines);
+  println("Corners saved.");
+}
+
+void loadCorners() {
+  String[] lines = loadStrings("corners.txt");
+  if (lines == null || lines.length != 4) {
+    println("No saved corners found. Using defaults.");
+    resetCorners();
+    return;
+  }
+
+  for (int i = 0; i < lines.length; i++) {
+    String[] coords = split(lines[i], ",");
+    if (coords.length == 2) {
+      float x = float(coords[0]);
+      float y = float(coords[1]);
+      corners[i] = new PVector(x, y);
+    }
+  }
+  println("Corners loaded.");
+}
+
+void exit() {
+  saveCorners(); // Save on exit
+  super.exit();
 }
 
 void drawBoundingBox() {
@@ -388,6 +409,9 @@ void mouseDragged() {
 }
 
 void mouseReleased() {
+  if (selectedCorner != -1) {
+    saveCorners(); // Auto-save after dragging (optional)
+  }
   selectedCorner = -1;
 }
 
@@ -396,6 +420,7 @@ void resetCorners() {
   corners[1] = new PVector(800, 200);
   corners[2] = new PVector(800, 800);
   corners[3] = new PVector(200, 800);
+  saveCorners(); // Save reset immediately
 }
 
 void keyPressed() {
@@ -408,6 +433,11 @@ void keyPressed() {
 
   if (key == 'h' || key == 'H') {
     showInfo = !showInfo;
+  }
+
+  if (key == 'r' || key == 'R') {
+    resetCorners();
+    println("Corners reset to default.");
   }
 }
 
