@@ -72,7 +72,7 @@ void draw() {
   handleBlurAndScale();
   handleImageTransition();
 
-  drawMask();
+  drawMask(); // Draw the mask after the image layer
   drawInfoPanel();
 
   if (editingPerspective) {
@@ -85,24 +85,26 @@ void draw() {
 }
 
 void handleSerial() {
-  // Only read when not editing the perspective
   if (!editingPerspective && myPort.available() > 0) {
     incomingData = myPort.readStringUntil('\n');
 
-    int currentDistance = maxDistance; // Default behavior: 400 cm
+    int currentDistance = maxDistance; // Default: 400 cm if bad data
 
     if (incomingData != null) {
       incomingData = trim(incomingData);
-      
-      try {
-        currentDistance = int(incomingData);  // Try parsing
-      } catch (Exception e) {
-        // Invalid data, use maxDistance
+
+      // If Arduino sends "Out of range", default to 400 cm
+      if (incomingData.equals("Out of range")) {
         currentDistance = maxDistance;
+      } else {
+        try {
+          currentDistance = int(incomingData);
+        } catch (Exception e) {
+          currentDistance = maxDistance; // Any parsing failure = 400 cm
+        }
       }
     }
 
-    // Apply distance logic
     float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
     newTargetBlur = constrain(newTargetBlur, 0, 15);
 
@@ -187,7 +189,38 @@ void resetImagePool() {
 }
 
 void drawMask() {
-  applyWarpedTexture(maskImg);
+  // Mask size difference between mask and image
+  float extraSize = 60; // 660 - 600
+  float offset = extraSize / 2.0; // 30 pixels on each side
+
+  // Find center of the image
+  float centerX = (corners[0].x + corners[1].x + corners[2].x + corners[3].x) / 4.0;
+  float centerY = (corners[0].y + corners[1].y + corners[2].y + corners[3].y) / 4.0;
+
+  // Offset mask corners outward from image corners
+  PVector[] maskCorners = new PVector[4];
+
+  for (int i = 0; i < 4; i++) {
+    float dx = corners[i].x - centerX;
+    float dy = corners[i].y - centerY;
+
+    PVector direction = new PVector(dx, dy);
+    direction.normalize();
+
+    maskCorners[i] = new PVector(
+      corners[i].x + direction.x * offset,
+      corners[i].y + direction.y * offset
+    );
+  }
+
+  // Draw the mask
+  beginShape();
+  texture(maskImg);
+  vertex(maskCorners[0].x, maskCorners[0].y, 0, 0);
+  vertex(maskCorners[1].x, maskCorners[1].y, maskImg.width, 0);
+  vertex(maskCorners[2].x, maskCorners[2].y, maskImg.width, maskImg.height);
+  vertex(maskCorners[3].x, maskCorners[3].y, 0, maskImg.height);
+  endShape(CLOSE);
 }
 
 void drawInfoPanel() {
