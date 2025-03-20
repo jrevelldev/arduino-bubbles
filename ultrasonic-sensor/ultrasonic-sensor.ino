@@ -1,6 +1,6 @@
 // Define pins
-const int trigPin = 5;
-const int echoPin = 6;
+const int trigPin = 12;  // GPIO 12 per TRIG
+const int echoPin = 14;  // GPIO 14 per ECHO
 
 // Variable to store the duration and distance
 long duration;
