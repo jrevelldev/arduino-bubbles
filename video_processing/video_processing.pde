@@ -77,7 +77,7 @@ void draw() {
   fill(255);
   textSize(20);
   textAlign(CENTER, CENTER);
-  text("📡 Connectto WiFi network: ESP32-Sensor01\n🔐 Password: Rosa1234\n\nProgram will begin automatically...", width / 2, height / 2);
+  text("📡 Connectto WiFi network: ESP32-Sensor01/02/03\n Password: Rosa1234\n\nProgram will begin automatically...", width / 2, height / 2);
 
   if (millis() > wifiInstructionsUntil) {
     wifiInstructionsShown = false;
