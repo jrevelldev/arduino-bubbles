@@ -56,9 +56,6 @@ void setup() {
 
   loadCorners();  // Load saved corners if they exist
 
-  String portName = Serial.list()[1];
-  myPort = new Serial(this, portName, 9600);
-
   lastPhaseTime = millis();
 
   println("Available ports:");
@@ -84,35 +81,40 @@ void draw() {
   }
 }
 
+int lastRequestTime = 0;
+int requestInterval = 300; // ms
+
 void handleSerial() {
-  if (!editingPerspective && myPort.available() > 0) {
-    incomingData = myPort.readStringUntil('\n');
+  if (editingPerspective) return;
+  if (millis() - lastRequestTime < requestInterval) return;
+  lastRequestTime = millis();
 
-    int currentDistance = maxDistance; // Default: 400 cm if bad data
+  try {
+    String[] result = loadStrings("http://192.168.10.1/data");  // IP fixa del teu ESP32
+    if (result != null && result.length > 0) {
+      incomingData = result[0].trim();
+      int currentDistance = maxDistance;
 
-    if (incomingData != null) {
-      incomingData = trim(incomingData);
-
-      // If Arduino sends "Out of range", default to 400 cm
-      if (incomingData.equals("Out of range")) {
+      if (incomingData.equals("Fora de rang")) {
         currentDistance = maxDistance;
       } else {
         try {
           currentDistance = int(incomingData);
         } catch (Exception e) {
-          currentDistance = maxDistance; // Any parsing failure = 400 cm
+          currentDistance = maxDistance;
         }
       }
+
+      float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
+      newTargetBlur = constrain(newTargetBlur, 0, 15);
+      targetScale = map(newTargetBlur, 0, 15, 1.0, 1.1);
+
+      if (abs(newTargetBlur - targetBlur) > 2) {
+        targetBlur = newTargetBlur;
+      }
     }
-
-    float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
-    newTargetBlur = constrain(newTargetBlur, 0, 15);
-
-    targetScale = map(newTargetBlur, 0, 15, 1.0, 1.1);
-
-    if (abs(newTargetBlur - targetBlur) > 2) {
-      targetBlur = newTargetBlur;
-    }
+  } catch (Exception e) {
+    println("No s'ha pogut connectar a l'ESP32.");
   }
 }
 

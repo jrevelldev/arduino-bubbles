@@ -63,7 +63,7 @@ void loop() {
     client.readStringUntil('\n'); // Neteja
 
     // Resposta per AJAX (fetch /dades)
-    if (request.indexOf("GET /dades") >= 0) {
+    if (request.indexOf("GET /data") >= 0) {
       String data;
       if (distance == -1) {
         data = "Out of range";
