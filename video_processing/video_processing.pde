@@ -21,6 +21,9 @@ int minCalibratedDistance = 10; // User calibrated min distance
 final int maxDistance = 400;    // Max distance (furthest)
 
 // UI & deformation
+boolean wifiInstructionsShown = true;
+int wifiInstructionsUntil = 0;
+
 boolean editingPerspective = false;
 boolean showInfo = true;
 
@@ -60,9 +63,28 @@ void setup() {
 
   println("Available ports:");
   println(Serial.list());
+  
+  wifiInstructionsUntil = millis() + 10000;  // mostra missatge durant 10 segons abans de connectar-se
+  println("📡 Connecta't a la xarxa WiFi: ESP32-Sensor01");
+  println("🔐 Contrasenya: Rosa1234");
+  println("⏳ Esperant connexió... el programa intentarà connectar-se en 10 segons");
 }
 
 void draw() {
+
+  if (wifiInstructionsShown) {
+  background(0);
+  fill(255);
+  textSize(20);
+  textAlign(CENTER, CENTER);
+  text("📡 Connectto WiFi network: ESP32-Sensor01\n🔐 Password: Rosa1234\n\nProgram will begin automatically...", width / 2, height / 2);
+
+  if (millis() > wifiInstructionsUntil) {
+    wifiInstructionsShown = false;
+  }
+  return; // Pausa el draw mentre es mostra el missatge
+  }
+  
   background(0);
 
   handleSerial();
