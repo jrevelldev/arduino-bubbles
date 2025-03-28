@@ -18,6 +18,12 @@ void setup() {
   pinMode(trigPin, OUTPUT);
   pinMode(echoPin, INPUT);
 
+  IPAddress local_IP(192, 168, 10, 1);        // Nova IP fixa
+  IPAddress gateway(192, 168, 10, 1);         // S'acostuma a ser la mateixa
+  IPAddress subnet(255, 255, 255, 0);         // Subxarxa estàndard
+
+  WiFi.softAPConfig(local_IP, gateway, subnet);
+
   // Crea la xarxa WiFi pròpia
   WiFi.softAP(ssid, password);
 
@@ -60,9 +66,9 @@ void loop() {
     if (request.indexOf("GET /dades") >= 0) {
       String data;
       if (distance == -1) {
-        data = "Fora de rang";
+        data = "Out of range";
       } else {
-        data = String(distance) + " cm";
+        data = String(distance);
       }
       client.print("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n");
       client.print(data);
