@@ -1,50 +1,96 @@
-// Define pins
-const int trigPin = 12;  // GPIO 12 per TRIG
-const int echoPin = 14;  // GPIO 14 per ECHO
+#include <WiFi.h>
 
-// Variable to store the duration and distance
+// Pins del sensor
+const int trigPin = 12;
+const int echoPin = 14;
+
 long duration;
 int distance;
 
+// Configura xarxa privada (Access Point)
+const char* ssid = "ESP32-Sensor01";
+const char* password = "Rosa1234";
+
+WiFiServer server(80);
+
 void setup() {
-  // Start the Serial Monitor
-  Serial.begin(9600);
-
-  // Set the trigPin as an OUTPUT
+  Serial.begin(115200);
   pinMode(trigPin, OUTPUT);
-
-  // Set the echoPin as an INPUT
   pinMode(echoPin, INPUT);
+
+  // Crea la xarxa WiFi pròpia
+  WiFi.softAP(ssid, password);
+
+  // Mostra la IP del servidor
+  IPAddress IP = WiFi.softAPIP();
+  Serial.println("Xarxa creada.");
+  Serial.print("Connecta't a la xarxa: ");
+  Serial.println(ssid);
+  Serial.print("IP del servidor: ");
+  Serial.println(IP);
+
+  server.begin();
 }
 
 void loop() {
-  // Ensure the trigPin is LOW to start with
+  // Mesura distància
   digitalWrite(trigPin, LOW);
   delayMicroseconds(2);
-
-  // Send a pulse to the trigPin to start measurement
   digitalWrite(trigPin, HIGH);
   delayMicroseconds(10);
   digitalWrite(trigPin, LOW);
-
-  // Read the echoPin to get the duration of the pulse
   duration = pulseIn(echoPin, HIGH);
+  distance = (duration / 2) / 29.1;
+  if (distance > 400) distance = -1;
 
-  // Calculate the distance (speed of sound is 34300 cm/s)
-  distance = (duration / 2) / 29.1;  // Divide by 2 for the travel distance there and back, and divide by 29.1 for the conversion to cm
+  // Atén peticions web
+  WiFiClient client = server.available();
+  if (client) {
+    //Serial.println("Client connectat");
 
-  // Check if the distance is too large (over 400 cm, which is beyond the sensor's range)
-  if (distance > 400) {
-    distance = -1;  // Invalid reading, set to -1 or any other value that makes sense for you
+    // Espera fins que hi hagi dades
+    while (client.connected() && !client.available()) delay(1);
+
+    String request = client.readStringUntil('\r');
+    Serial.print("Petició: ");
+    Serial.println(request);
+    client.readStringUntil('\n'); // Neteja
+
+    // Resposta per AJAX (fetch /dades)
+    if (request.indexOf("GET /dades") >= 0) {
+      String data;
+      if (distance == -1) {
+        data = "Fora de rang";
+      } else {
+        data = String(distance) + " cm";
+      }
+      client.print("HTTP/1.1 200 OK\r\nContent-Type: text/plain\r\n\r\n");
+      client.print(data);
+    }
+
+    // Resposta principal (HTML)
+    else {
+      String html = "HTTP/1.1 200 OK\r\nContent-Type: text/html\r\n\r\n";
+      html += "<!DOCTYPE html><html><head><meta charset='UTF-8'><title>Distància</title>";
+      html += "<style>body{font-family:sans-serif;text-align:center;margin-top:50px;}</style>";
+      html += "<script>";
+      html += "setInterval(function() {";
+      html += "fetch('/dades').then(r => r.text()).then(t => {";
+      html += "document.getElementById('dist').innerHTML = t;";
+      html += "});";
+      html += "}, 1000);";
+      html += "</script></head><body>";
+      html += "<h1>📏 Distància amb ultrasons</h1>";
+      html += "<p id='dist'>Carregant...</p>";
+      html += "</body></html>";
+
+      client.print(html);
+    }
+
+    delay(1);
+    client.stop();
+    //Serial.println("Client desconnectat");
   }
 
-  // Print the distance to the Serial Monitor
-  if (distance == -1) {
-    Serial.println("Out of range");
-  } else {
-    Serial.println(distance);
-  }
-
-  // Wait for a second before taking another measurement
-  delay(1000);
+  delay(100); // Freqüència de mesura
 }
