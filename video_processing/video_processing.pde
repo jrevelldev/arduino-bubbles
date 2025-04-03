@@ -37,7 +37,7 @@ float scaleTransitionSpeed = 0.1;
 
 // Fade between images
 float alphaValue = 0;
-float fadeSpeed = 5.0;
+float fadeSpeed = 50; //més gran = mes rapid
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
 int holdTime = 10000; // milliseconds
 int lastPhaseTime = 0;

@@ -35,7 +35,7 @@ PImage maskImg;
 // Blur & scaling
 float blurAmount = 0;
 float targetBlur = 0;
-float blurTransitionSpeed = 0.01f;
+float blurTransitionSpeed = 0.5f; //was 0.1
 
 int minCalibratedDistance = 10; // User calibrated min distance
 final int maxDistance = 200;    // Max distance (furthest)
@@ -57,7 +57,7 @@ float scaleTransitionSpeed = 0.1f;
 
 // Fade between images
 float alphaValue = 0;
-float fadeSpeed = 5.0f;
+float fadeSpeed = 50; //més gran = mes rapid
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
 int holdTime = 10000; // milliseconds
 int lastPhaseTime = 0;
