@@ -15,7 +15,7 @@ PImage maskImg;
 // Blur & scaling
 float blurAmount = 0;
 float targetBlur = 0;
-float blurTransitionSpeed = 0.01;
+float blurTransitionSpeed = 0.5; //was 0.1
 
 int minCalibratedDistance = 10; // User calibrated min distance
 final int maxDistance = 200;    // Max distance (furthest)

@@ -35,10 +35,10 @@ PImage maskImg;
 // Blur & scaling
 float blurAmount = 0;
 float targetBlur = 0;
-float blurTransitionSpeed = 0.1f;
+float blurTransitionSpeed = 0.01f;
 
 int minCalibratedDistance = 10; // User calibrated min distance
-final int maxDistance = 400;    // Max distance (furthest)
+final int maxDistance = 200;    // Max distance (furthest)
 
 // UI & deformation
 boolean wifiInstructionsShown = true;
@@ -59,7 +59,7 @@ float scaleTransitionSpeed = 0.1f;
 float alphaValue = 0;
 float fadeSpeed = 5.0f;
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
-int holdTime = 3000; // milliseconds
+int holdTime = 10000; // milliseconds
 int lastPhaseTime = 0;
 
 public void setup() {
@@ -84,10 +84,10 @@ public void setup() {
   println("Available ports:");
   println(Serial.list());
   
-  wifiInstructionsUntil = millis() + 10000;  // mostra missatge durant 10 segons abans de connectar-se
-  println("📡 Connecta't a la xarxa WiFi: ESP32-Sensor01");
-  println("🔐 Contrasenya: Rosa1234");
-  println("⏳ Esperant connexió... el programa intentarà connectar-se en 10 segons");
+  wifiInstructionsUntil = millis() + 5000;  // mostra missatge durant 5 segons abans de connectar-se
+  println("Connecta't a la xarxa WiFi: ESP32-Sensor01");
+  println("Contrasenya: Rosa1234");
+  println("Esperant connexió... el programa intentarà connectar-se en 10 segons");
 }
 
 public void draw() {
@@ -97,7 +97,7 @@ public void draw() {
   fill(255);
   textSize(20);
   textAlign(CENTER, CENTER);
-  text("📡 Connectto WiFi network: ESP32-Sensor01/02/03\n Password: Rosa1234\n\nProgram will begin automatically...", width / 2, height / 2);
+  text("Connectto WiFi network: ESP32-Sensor01/02/03\n Password: Rosa1234\n\nProgram will begin automatically...", width / 2, height / 2);
 
   if (millis() > wifiInstructionsUntil) {
     wifiInstructionsShown = false;
@@ -124,7 +124,7 @@ public void draw() {
 }
 
 int lastRequestTime = 0;
-int requestInterval = 300; // ms
+int requestInterval = 100; // ms
 
 public void handleSerial() {
   if (editingPerspective) return;
@@ -137,7 +137,7 @@ public void handleSerial() {
       incomingData = result[0].trim();
       int currentDistance = maxDistance;
 
-      if (incomingData.equals("Fora de rang")) {
+      if (incomingData.equals("Out of range")) {
         currentDistance = maxDistance;
       } else {
         try {
