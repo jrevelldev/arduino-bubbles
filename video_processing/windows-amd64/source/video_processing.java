@@ -147,9 +147,9 @@ public void handleSerial() {
         }
       }
 
-      float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 15);
-      newTargetBlur = constrain(newTargetBlur, 0, 15);
-      targetScale = map(newTargetBlur, 0, 15, 1.0f, 1.1f);
+      float newTargetBlur = map(currentDistance, minCalibratedDistance, maxDistance, 0, 7);
+      newTargetBlur = constrain(newTargetBlur, 0, 7);
+      targetScale = map(newTargetBlur, 0, 7, 1.0f, 1.1f);
 
       if (abs(newTargetBlur - targetBlur) > 2) {
         targetBlur = newTargetBlur;
