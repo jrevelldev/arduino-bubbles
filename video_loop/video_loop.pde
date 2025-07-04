@@ -23,6 +23,19 @@ public void settings() {
 }
 
 void setup() {
+  // Clear previous frames
+  File framesDir = new File(sketchPath("frames"));
+  if (framesDir.exists()) {
+    for (File f : framesDir.listFiles()) {
+      if (f.isFile() && f.getName().endsWith(".png")) {
+        f.delete();
+      }
+    }
+  } else {
+    framesDir.mkdirs();  // create the folder if it doesn't exist
+  }
+
+  
   frameRate(fps);
 
   ArrayList<PImage> tempList = new ArrayList<PImage>();
