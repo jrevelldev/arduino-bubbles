@@ -3,7 +3,7 @@ import java.util.Collections;
 import java.util.Arrays;
 import java.util.List;
 
-PImage[] images;
+String[] imagePaths;
 int imgIndex = 0;
 PImage currentImg;
 
@@ -11,18 +11,22 @@ int phase = 0;  // 0 = fade in, 1 = hold, 2 = fade out
 int phaseFrame = 0;
 int fps = 25;
 
-int fadeDuration = int(2 * fps);    // 2 seconds fade in/out
-int holdDuration = int(5 * fps);    // 5 seconds hold
+float fadeTimeSec = 2.0;
+float holdTimeSec = 5.0;
+
+int fadeDuration = int(fadeTimeSec * fps);
+int holdDuration = int(holdTimeSec * fps);
 
 float blurAmount = 20;
-int totalImages = 0;
 boolean done = false;
 
 public void settings() {
-  size(500, int(500 * 1633.0 / 2177.0));  // 500 × 375
+  size(500, int(500 * 1633.0 / 2177.0));  // preserve aspect ratio
 }
 
 void setup() {
+  frameRate(fps);
+
   // Clear previous frames
   File framesDir = new File(sketchPath("frames"));
   if (framesDir.exists()) {
@@ -32,14 +36,11 @@ void setup() {
       }
     }
   } else {
-    framesDir.mkdirs();  // create the folder if it doesn't exist
+    framesDir.mkdirs();
   }
 
-  
-  frameRate(fps);
-
-  ArrayList<PImage> tempList = new ArrayList<PImage>();
-
+  // Get image file paths
+  ArrayList<String> tempList = new ArrayList<String>();
   String[] folders = {
     "images/folder1",
     "images/folder2",
@@ -52,25 +53,57 @@ void setup() {
     if (dir.exists()) {
       for (File f : dir.listFiles()) {
         if (f.isFile() && (f.getName().endsWith(".jpg") || f.getName().endsWith(".png"))) {
-          tempList.add(loadImage(folder + "/" + f.getName()));
+          tempList.add(folder + "/" + f.getName());
         }
       }
     }
   }
 
-  images = tempList.toArray(new PImage[0]);
+  imagePaths = tempList.toArray(new String[0]);
 
-  // Shuffle the images
-  List<PImage> imgList = Arrays.asList(images);
-  Collections.shuffle(imgList);
-  images = imgList.toArray(new PImage[0]);
+  // Shuffle
+  List<String> pathList = Arrays.asList(imagePaths);
+  Collections.shuffle(pathList);
+  imagePaths = pathList.toArray(new String[0]);
 
-  totalImages = images.length;
+  if (imagePaths.length == 0) {
+    println("❌ No images found.");
+    exit();
+  }
+
+  // Print info
+  int framesPerImage = fadeDuration * 2 + holdDuration;
+  int totalFrames = framesPerImage * imagePaths.length;
+  float estimatedSeconds = totalFrames / float(fps);
+  float estimatedMinutes = estimatedSeconds / 60.0;
+
+  println("Total images to process: " + imagePaths.length);
+  println("Total frames to output: " + totalFrames);
+  println("Estimated render time at " + fps + " fps: " +
+         nf(estimatedSeconds, 0, 1) + " sec (" +
+         nf(estimatedMinutes, 0, 1) + " min)");
+  
+  // Create a text file with render details for Premiere or reference
+  // It includes resolution, framerate, durations, and total frame count
+  String info = "Render Info\n"
+            + "===========\n"
+            + "Resolution: " + width + " x " + height + "\n"
+            + "Framerate: " + fps + " fps\n"
+            + "Fade Duration: " + fadeTimeSec + " sec\n"
+            + "Hold Duration: " + holdTimeSec + " sec\n"
+            + "Frames per Image: " + (fadeDuration * 2 + holdDuration) + "\n"
+            + "Total Images: " + imagePaths.length + "\n"
+            + "Total Frames: " + ((fadeDuration * 2 + holdDuration) * imagePaths.length) + "\n";
+
+saveStrings("render-info.txt", split(info, "\n"));
+
+
   loadNextImage();
 }
 
 void draw() {
   if (done) {
+    println("✅ All images processed.");
     exit();
     return;
   }
@@ -80,14 +113,14 @@ void draw() {
   float alpha = 255;
   float blurLevel = 0;
 
-  if (phase == 0) {  // fade in
+  if (phase == 0) {
     float pct = phaseFrame / float(fadeDuration);
     blurLevel = lerp(blurAmount, 0, pct);
     alpha = lerp(0, 255, pct);
-  } else if (phase == 1) {  // hold
+  } else if (phase == 1) {
     blurLevel = 0;
     alpha = 255;
-  } else if (phase == 2) {  // fade out
+  } else if (phase == 2) {
     float pct = phaseFrame / float(fadeDuration);
     blurLevel = lerp(0, blurAmount, pct);
     alpha = lerp(255, 0, pct);
@@ -112,7 +145,7 @@ void draw() {
 
   if (phase > 2) {
     imgIndex++;
-    if (imgIndex >= totalImages) {
+    if (imgIndex >= imagePaths.length) {
       done = true;
     } else {
       loadNextImage();
@@ -121,19 +154,21 @@ void draw() {
 }
 
 void loadNextImage() {
-  currentImg = images[imgIndex];
-  float imgRatio = currentImg.width / float(currentImg.height);
-float canvasRatio = width / float(height);
+  println("📷 Rendering image " + (imgIndex + 1) + " of " + imagePaths.length);
+  currentImg = loadImage(imagePaths[imgIndex]);
 
-int newW, newH;
-if (imgRatio > canvasRatio) {
-  newW = width;
-  newH = int(width / imgRatio);
-} else {
-  newH = height;
-  newW = int(height * imgRatio);
-}
-currentImg.resize(newW, newH);
+  // Resize with aspect ratio
+  float imgRatio = currentImg.width / float(currentImg.height);
+  float canvasRatio = width / float(height);
+  int newW, newH;
+  if (imgRatio > canvasRatio) {
+    newW = width;
+    newH = int(width / imgRatio);
+  } else {
+    newH = height;
+    newW = int(height * imgRatio);
+  }
+  currentImg.resize(newW, newH);
 
   phase = 0;
   phaseFrame = 0;
