@@ -20,6 +20,8 @@ int holdDuration = int(holdTimeSec * fps);
 float blurAmount = 20;
 boolean done = false;
 
+String saveFramePattern = "frames/frame-####.png";  // will be updated dynamically
+
 public void settings() {
   size(500, int(500 * 1633.0 / 2177.0));  // preserve aspect ratio
 }
@@ -71,32 +73,39 @@ void setup() {
     exit();
   }
 
-  // Print info
+  // Estimate total frames
   int framesPerImage = fadeDuration * 2 + holdDuration;
   int totalFrames = framesPerImage * imagePaths.length;
   float estimatedSeconds = totalFrames / float(fps);
   float estimatedMinutes = estimatedSeconds / 60.0;
 
-  println("Total images to process: " + imagePaths.length);
-  println("Total frames to output: " + totalFrames);
-  println("Estimated render time at " + fps + " fps: " +
+  println("🖼️  Total images to process: " + imagePaths.length);
+  println("🎞️  Total frames to output: " + totalFrames);
+  println("⏱️  Estimated render time at " + fps + " fps: " +
          nf(estimatedSeconds, 0, 1) + " sec (" +
          nf(estimatedMinutes, 0, 1) + " min)");
-  
-  // Create a text file with render details for Premiere or reference
-  // It includes resolution, framerate, durations, and total frame count
+
+  // Create dynamic frame pattern based on totalFrames
+  int digitCount = str(totalFrames).length();  // e.g. "47000" → 5
+  String hashPattern = "";
+  for (int i = 0; i < digitCount; i++) {
+    hashPattern += "#";
+  }
+  saveFramePattern = "frames/frame-" + hashPattern + ".png";
+
+  // Write render-info.txt
   String info = "Render Info\n"
-            + "===========\n"
-            + "Resolution: " + width + " x " + height + "\n"
-            + "Framerate: " + fps + " fps\n"
-            + "Fade Duration: " + fadeTimeSec + " sec\n"
-            + "Hold Duration: " + holdTimeSec + " sec\n"
-            + "Frames per Image: " + (fadeDuration * 2 + holdDuration) + "\n"
-            + "Total Images: " + imagePaths.length + "\n"
-            + "Total Frames: " + ((fadeDuration * 2 + holdDuration) * imagePaths.length) + "\n";
+              + "===========\n"
+              + "Resolution: " + width + " x " + height + "\n"
+              + "Framerate: " + fps + " fps\n"
+              + "Fade Duration: " + fadeTimeSec + " sec\n"
+              + "Hold Duration: " + holdTimeSec + " sec\n"
+              + "Frames per Image: " + framesPerImage + "\n"
+              + "Total Images: " + imagePaths.length + "\n"
+              + "Total Frames: " + totalFrames + "\n"
+              + "Save Pattern: " + saveFramePattern + "\n";
 
-saveStrings("render-info.txt", split(info, "\n"));
-
+  saveStrings("render-info.txt", split(info, "\n"));
 
   loadNextImage();
 }
@@ -132,7 +141,7 @@ void draw() {
   image(blurred, width / 2, height / 2);
   noTint();
 
-  saveFrame("frames/frame-####.png");
+  saveFrame(saveFramePattern);  // uses dynamic ###### format
 
   phaseFrame++;
   if ((phase == 0 || phase == 2) && phaseFrame >= fadeDuration) {

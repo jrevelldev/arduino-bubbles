@@ -1,0 +1,11 @@
+Render Info
+===========
+Resolution: 500 x 375
+Framerate: 25 fps
+Fade Duration: 2.0 sec
+Hold Duration: 5.0 sec
+Frames per Image: 225
+Total Images: 213
+Total Frames: 47925
+Save Pattern: frames/frame-#####.png
+
