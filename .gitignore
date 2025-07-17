@@ -14,3 +14,37 @@
 
 # Ignore frames folder inside video_loop
 video_loop/frames/
+
+
+# Ignore all files in folder1
+video_loop/data/images/folder1/*
+# Keep only 1.png to 5.png
+!video_loop/data/images/folder1/1.png
+!video_loop/data/images/folder1/2.png
+!video_loop/data/images/folder1/3.png
+!video_loop/data/images/folder1/4.png
+!video_loop/data/images/folder1/5.png
+
+# Ignore all files in folder2
+video_loop/data/images/folder2/*
+!video_loop/data/images/folder2/1.png
+!video_loop/data/images/folder2/2.png
+!video_loop/data/images/folder2/3.png
+!video_loop/data/images/folder2/4.png
+!video_loop/data/images/folder2/5.png
+
+# folder3
+video_loop/data/images/folder3/*
+!video_loop/data/images/folder3/1.png
+!video_loop/data/images/folder3/2.png
+!video_loop/data/images/folder3/3.png
+!video_loop/data/images/folder3/4.png
+!video_loop/data/images/folder3/5.png
+
+# folder4
+video_loop/data/images/folder4/*
+!video_loop/data/images/folder4/1.png
+!video_loop/data/images/folder4/2.png
+!video_loop/data/images/folder4/3.png
+!video_loop/data/images/folder4/4.png
+!video_loop/data/images/folder4/5.png
