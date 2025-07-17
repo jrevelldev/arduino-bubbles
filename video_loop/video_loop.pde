@@ -1,3 +1,52 @@
+/**
+ * Image Fade-In/Fade-Out Video Frame Generator
+ * =============================================
+ * 
+ * Description:
+ * ------------
+ * This Processing sketch generates a sequence of images with smooth transitions 
+ * (fade-in, hold, fade-out) between them. Each image is blurred at the start 
+ * and end, and sharp during the hold phase. All frames are saved to a "frames/" 
+ * folder and can be compiled into a video externally.
+ * 
+ * Output:
+ * -------
+ * - Frames saved as PNGs using a dynamic filename pattern like `frames/frame-000001.png`.
+ * - Metadata file `render-info.txt` saved in the sketch directory.
+ * 
+ * Preconfiguration Required:
+ * --------------------------
+ * 1. Place your input images inside the following folders (relative to the sketch's data folder):
+ *    - `images/folder1`
+ *    - `images/folder2`
+ *    - `images/folder3`
+ *    - `images/folder4`
+ *    You can customize or extend this list in the `folders` array in `setup()`.
+ * 
+ * 2. Ensure each folder contains images named with `.jpg` or `.png` extensions.
+ * 3. Make sure the "frames" directory is writable (the script will create or clear it).
+ * 
+ * Timing Settings:
+ * ----------------
+ * - Fade-in duration: 2 seconds
+ * - Hold duration: 5 seconds
+ * - Fade-out duration: 2 seconds
+ * - Frame rate: 25 FPS
+ * 
+ * Other Notes:
+ * ------------
+ * - Images are automatically resized to fit a canvas of width 500px, preserving aspect ratio.
+ * - The sketch estimates and prints the total frame count and rendering time.
+ * - All image paths are shuffled to ensure a random order of display.
+ * - Once rendering is complete, the sketch exits automatically.
+ * 
+ * Useful for:
+ * -----------
+ * - Creating smooth video loops or transitions from still images.
+ * - Generating time-synced frame sequences for music videos, installations, or generative art.
+ */
+
+
 import java.io.File;
 import java.util.Collections;
 import java.util.Arrays;
