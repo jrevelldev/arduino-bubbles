@@ -69,16 +69,16 @@ int holdDuration = int(holdTimeSec * fps);
 float blurAmount = 20;
 boolean done = false;
 
-String saveFramePattern = "frames/frame-####.png";  // will be updated dynamically
+String saveFramePattern = "frames/frame-####.png";
+int savedFrameCount = 0;
+int digitCount;
+long startTime;
 
 public void settings() {
   size(500, int(500 * 1633.0 / 2177.0));  // preserve aspect ratio
 }
 
 void setup() {
-  frameRate(fps);
-
-  // Clear previous frames
   File framesDir = new File(sketchPath("frames"));
   if (framesDir.exists()) {
     for (File f : framesDir.listFiles()) {
@@ -90,7 +90,6 @@ void setup() {
     framesDir.mkdirs();
   }
 
-  // Get image file paths
   ArrayList<String> tempList = new ArrayList<String>();
   String[] folders = {
     "images/folder1",
@@ -111,8 +110,6 @@ void setup() {
   }
 
   imagePaths = tempList.toArray(new String[0]);
-
-  // Shuffle
   List<String> pathList = Arrays.asList(imagePaths);
   Collections.shuffle(pathList);
   imagePaths = pathList.toArray(new String[0]);
@@ -122,11 +119,11 @@ void setup() {
     exit();
   }
 
-  // Estimate total frames
   int framesPerImage = fadeDuration * 2 + holdDuration;
   int totalFrames = framesPerImage * imagePaths.length;
   float estimatedSeconds = totalFrames / float(fps);
   float estimatedMinutes = estimatedSeconds / 60.0;
+  digitCount = str(totalFrames).length();
 
   println("🖼️  Total images to process: " + imagePaths.length);
   println("🎞️  Total frames to output: " + totalFrames);
@@ -134,15 +131,8 @@ void setup() {
          nf(estimatedSeconds, 0, 1) + " sec (" +
          nf(estimatedMinutes, 0, 1) + " min)");
 
-  // Create dynamic frame pattern based on totalFrames
-  int digitCount = str(totalFrames).length();  // e.g. "47000" → 5
-  String hashPattern = "";
-  for (int i = 0; i < digitCount; i++) {
-    hashPattern += "#";
-  }
-  saveFramePattern = "frames/frame-" + hashPattern + ".png";
+  saveFramePattern = "frames/frame-" + repeat("#", digitCount) + ".png";
 
-  // Write render-info.txt
   String info = "Render Info\n"
               + "===========\n"
               + "Resolution: " + width + " x " + height + "\n"
@@ -157,40 +147,54 @@ void setup() {
   saveStrings("render-info.txt", split(info, "\n"));
 
   loadNextImage();
-}
 
-void draw() {
-  if (done) {
-    println("✅ All images processed.");
-    exit();
-    return;
+  startTime = millis();
+
+  while (!done) {
+    renderFrame();
+    redraw();   // force canvas update
+    delay(1);   // allow time for repaint
   }
 
-  background(0);
+  long totalTime = millis() - startTime;
+  println("✅ Done: rendered " + savedFrameCount + " frames in " + (totalTime / 1000.0) + " seconds.");
+  delay(500);
+  exit();
+}
 
+void renderFrame() {
   float alpha = 255;
   float blurLevel = 0;
+  float pct = 0;
 
   if (phase == 0) {
-    float pct = phaseFrame / float(fadeDuration);
+    pct = phaseFrame / (float)fadeDuration;
     blurLevel = lerp(blurAmount, 0, pct);
     alpha = lerp(0, 255, pct);
   } else if (phase == 1) {
     blurLevel = 0;
     alpha = 255;
   } else if (phase == 2) {
-    float pct = phaseFrame / float(fadeDuration);
+    pct = phaseFrame / (float)fadeDuration;
     blurLevel = lerp(0, blurAmount, pct);
     alpha = lerp(255, 0, pct);
   }
 
+  // Prepare blurred frame
   PImage blurred = getBlurred(currentImg, blurLevel);
+
+  // ✅ Draw to window
+  surface.setTitle("Rendering frame " + savedFrameCount);
+  background(0);
   tint(255, alpha);
   imageMode(CENTER);
   image(blurred, width / 2, height / 2);
   noTint();
 
-  saveFrame(saveFramePattern);  // uses dynamic ###### format
+  // ✅ Save to disk
+  String filename = "frames/frame-" + nf(savedFrameCount, digitCount) + ".png";
+  saveFrame(filename);
+  savedFrameCount++;
 
   phaseFrame++;
   if ((phase == 0 || phase == 2) && phaseFrame >= fadeDuration) {
@@ -211,23 +215,36 @@ void draw() {
   }
 }
 
+
+// Optional: Preview mode (doesn't save frames)
+void draw() {
+  if (!done) return;
+
+  background(0);
+  tint(255);
+  imageMode(CENTER);
+  image(currentImg, width / 2, height / 2);
+  noTint();
+}
+
+// Load and resize the next image
 void loadNextImage() {
   println("📷 Rendering image " + (imgIndex + 1) + " of " + imagePaths.length);
   currentImg = loadImage(imagePaths[imgIndex]);
 
-  // Resize with aspect ratio
-  float imgRatio = currentImg.width / float(currentImg.height);
-  float canvasRatio = width / float(height);
+  float imgRatio = currentImg.width / (float)currentImg.height;
+  float canvasRatio = width / (float)height;
   int newW, newH;
+
   if (imgRatio > canvasRatio) {
     newW = width;
-    newH = int(width / imgRatio);
+    newH = (int)(width / imgRatio);
   } else {
     newH = height;
-    newW = int(height * imgRatio);
+    newW = (int)(height * imgRatio);
   }
-  currentImg.resize(newW, newH);
 
+  currentImg.resize(newW, newH);
   phase = 0;
   phaseFrame = 0;
 }
@@ -239,4 +256,11 @@ PImage getBlurred(PImage img, float amount) {
   pg.filter(BLUR, amount);
   pg.endDraw();
   return pg.get();
+}
+
+// Simple utility to repeat a character
+String repeat(String c, int count) {
+  String result = "";
+  for (int i = 0; i < count; i++) result += c;
+  return result;
 }
