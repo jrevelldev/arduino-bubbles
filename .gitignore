@@ -11,3 +11,6 @@
 ._*
 .Spotlight-V100
 .fseventsd
+
+# Ignore frames folder inside video_loop
+video_loop/frames/
