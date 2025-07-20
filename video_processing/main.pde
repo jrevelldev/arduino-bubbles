@@ -2,8 +2,8 @@
 
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
 int phaseStartTime = 0;
-int fadeDuration = 2000;
-int holdDuration = 5000;
+int fadeDuration = 1000;
+int holdDuration = 2000;
 float alpha = 0;
 
 int distance = -1;
@@ -16,6 +16,12 @@ float maxBlur = 10;
 int minFocusDistance = 30;  // Can be calibrated by user
 PImage lastBlurredImage;
 int lastBlurredDistance = -1;
+float blurLevel = 0;          // current blur amount (used for smoothing)
+float targetBlur = 0;         // target blur amount based on distance
+float blurLerpSpeed = 0.1;    // between 0 (very slow) and 1 (instant) — tweak as needed
+
+boolean waitingForNext = false;
+
 
 //////////////////////////
 void setup() {
@@ -62,16 +68,26 @@ void draw() {
   if (d != -1) distance = d;
 
   updateAlpha();
+  
+    if (waitingForNext) {
+      loadNextImage();
+      lastBlurredImage = null;
+      lastBlurredDistance = -1;
+      waitingForNext = false;
+    }
 
   if (currentImage != null) {
-    tint(255, alpha);
-    if (distance != lastBlurredDistance) {
-      lastBlurredImage = getBlurredVersion(currentImage, distance);
-      lastBlurredDistance = distance;
-    }
+      targetBlur = map(distance, minFocusDistance, maxDistance, 0, maxBlur);
+      targetBlur = constrain(targetBlur, 0, maxBlur);
+      blurLevel = lerp(blurLevel, targetBlur, blurLerpSpeed);
+      
+      if (abs(blurLevel - lastBlurredDistance) > 1 || lastBlurredImage == null) {
+        lastBlurredImage = getBlurredVersion(currentImage, blurLevel);
+        lastBlurredDistance = int(blurLevel);
+      }
     tint(255, alpha);
     image(lastBlurredImage, width / 2, height / 2);
-    noTint();    
+    //noTint();    
   }
 
   drawInfo();
@@ -83,7 +99,7 @@ void updateAlpha() {
   int elapsed = now - phaseStartTime;
 
   switch (phase) {
-    case 0:
+    case 0: //fade in
       alpha = map(elapsed, 0, fadeDuration, 0, 255);
       if (elapsed >= fadeDuration) {
         alpha = 255;
@@ -91,33 +107,32 @@ void updateAlpha() {
         phaseStartTime = now;
       }
       break;
-    case 1:
+      
+    case 1:  //hold
       alpha = 255;
       if (elapsed >= holdDuration) {
         phase = 2;
         phaseStartTime = now;
       }
       break;
-    case 2:
+      
+    case 2:  // fade out
       alpha = map(elapsed, 0, fadeDuration, 255, 0);
       if (elapsed >= fadeDuration) {
         alpha = 0;
-        loadNextImage();
+        waitingForNext = true;
+        //loadNextImage();
+        phase = 0;
+        phaseStartTime = now;
       }
       break;
   }
 }
 
 //////////////////
-PImage getBlurredVersion(PImage img, int dist) {
+PImage getBlurredVersion(PImage img, float blurAmt) {
   if (img == null) return null;
-  if (dist < 0) return img;
-
-  // Map distance to blur amount (0 = sharp, maxDistance = full blur)
-  float blurAmt = map(dist, minFocusDistance, maxDistance, 0, maxBlur);
   blurAmt = constrain(blurAmt, 0, maxBlur);
-
-  // Apply blur using a PGraphics buffer
   PGraphics pg = createGraphics(img.width, img.height);
   pg.beginDraw();
   pg.image(img, 0, 0);
