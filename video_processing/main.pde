@@ -2,8 +2,8 @@
 
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
 int phaseStartTime = 0;
-int fadeDuration = 1000;
-int holdDuration = 2000;
+int fadeDuration = 2000;
+int holdDuration = 5000;
 float alpha = 0;
 
 int distance = -1;
