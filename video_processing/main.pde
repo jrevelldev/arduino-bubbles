@@ -12,6 +12,12 @@ boolean showIntro = true;
 int connectDelay = 5000;
 int connectStartTime;
 
+float maxBlur = 10;
+int minFocusDistance = 30;  // Can be calibrated by user
+PImage lastBlurredImage;
+int lastBlurredDistance = -1;
+
+//////////////////////////
 void setup() {
   size(1000, 800);
   imageMode(CENTER);
@@ -31,6 +37,7 @@ void setup() {
   loadNextImage();
 }
 
+//////////////////////////
 void draw() {
   background(0);
 
@@ -58,13 +65,19 @@ void draw() {
 
   if (currentImage != null) {
     tint(255, alpha);
-    image(currentImage, width / 2, height / 2);
-    noTint();
+    if (distance != lastBlurredDistance) {
+      lastBlurredImage = getBlurredVersion(currentImage, distance);
+      lastBlurredDistance = distance;
+    }
+    tint(255, alpha);
+    image(lastBlurredImage, width / 2, height / 2);
+    noTint();    
   }
 
   drawInfo();
 }
 
+//////////////////////
 void updateAlpha() {
   int now = millis();
   int elapsed = now - phaseStartTime;
@@ -95,22 +108,51 @@ void updateAlpha() {
   }
 }
 
+//////////////////
+PImage getBlurredVersion(PImage img, int dist) {
+  if (img == null) return null;
+  if (dist < 0) return img;
+
+  // Map distance to blur amount (0 = sharp, maxDistance = full blur)
+  float blurAmt = map(dist, minFocusDistance, maxDistance, 0, maxBlur);
+  blurAmt = constrain(blurAmt, 0, maxBlur);
+
+  // Apply blur using a PGraphics buffer
+  PGraphics pg = createGraphics(img.width, img.height);
+  pg.beginDraw();
+  pg.image(img, 0, 0);
+  pg.filter(BLUR, blurAmt);
+  pg.endDraw();
+  return pg.get();
+}
+
+//////////////////
 void drawInfo() {
   textAlign(RIGHT, TOP);
   textSize(16);
   fill(255);
+
   text("Distància: " + (distance != -1 ? distance + " cm" : "--"), width - 20, 20);
   if (isSimulated()) {
     fill(180);
     text("[Dades simulades]", width - 20, 45);
     fill(255);
   }
+  text("Focus threshold: " + minFocusDistance + " cm", width - 20, 65);
+
 }
 
+/////////////////////
 void keyPressed() {
   if (showIntro && (key == 's' || key == 'S')) {
     setSimulate(true);
     showIntro = false;
     println("Simulació activada manualment");
+  }
+  if (key == 'c' || key == 'C') {
+    if (distance > 0) {
+      minFocusDistance = distance;
+      println("Focus calibration set to distance: " + minFocusDistance);
+    }
   }
 }
