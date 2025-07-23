@@ -3,24 +3,29 @@
 int phase = 0; // 0 = fade in, 1 = hold, 2 = fade out
 int phaseStartTime = 0;
 int fadeDuration = 2000;
-int holdDuration = 5000;
+int holdDuration = 8000;
 float alpha = 0;
 
 int distance = -1;
 PFont font;
+boolean loadingImages = false;
 boolean showIntro = true;
 int connectDelay = 5000;
 int connectStartTime;
 
 float maxBlur = 10;
 int minFocusDistance = 30;  // Can be calibrated by user
-PImage lastBlurredImage;
-int lastBlurredDistance = -1;
+//PImage lastBlurredImage;
+//int lastBlurredDistance = -1;
 float blurLevel = 0;          // current blur amount (used for smoothing)
 float targetBlur = 0;         // target blur amount based on distance
 float blurLerpSpeed = 0.1;    // between 0 (very slow) and 1 (instant) — tweak as needed
 
-boolean waitingForNext = false;
+//PImage currentImage;
+PImage sharpImage;
+PImage blurredImage;
+
+//boolean waitingForNext = false;
 
 
 //////////////////////////
@@ -28,71 +33,119 @@ void setup() {
   size(1000, 800);
   imageMode(CENTER);
 
-  font = createFont("Arial", 20);
+  font = loadFont("Arial-20.vlw");
   textFont(font);
   textAlign(CENTER, CENTER);
   fill(255);
 
-  println("Connecta't a la xarxa WiFi: ESP32-Sensor01");
-  println("Contrasenya: Rosa1234");
-  println("Esperant connexió... prem S per simular dades");
+  background(0);
+  text("Carregant imatges...", width / 2, height / 2);
+  println("Carregant imatges...");
+  delay(500); // ⏳ Give user time to see it before loading
+
+  loadingImages = true;
 
   connectStartTime = millis();
-  loadImages();
+  showIntro = false;
+  
+  //loadImages();
   shuffleOrder();
-  loadNextImage();
+  //loadNextImage();
 }
 
 //////////////////////////
 void draw() {
   background(0);
 
+// --------- PHASE 1: Loading images ---------
+  if (loadingImages) {
+    textAlign(CENTER, CENTER);
+    textSize(24);
+    fill(255);
+    text("Carregant imatges...", width / 2, height / 2);
+
+    loadImages();        // Only once
+    shuffleOrder();
+    loadingImages = false;
+
+    // Start intro timer now
+    connectStartTime = millis();
+    showIntro = true;
+    return;
+  }
+
+  // Show intro screen if still in countdown
   if (showIntro) {
     int elapsed = millis() - connectStartTime;
     int remaining = (connectDelay - elapsed) / 1000;
 
     textSize(24);
+    textAlign(CENTER, CENTER);
+    fill(255);
+    
     text("Connecta't a la WiFi: ESP32-Sensor01", width/2, height/2 - 60);
     text("Contrasenya: Rosa1234", width/2, height/2 - 20);
     text("Connectant en: " + max(0, remaining) + " segons...", width/2, height/2 + 40);
     text("Prem S per simular dades", width/2, height/2 + 80);
-
+    
+    println("Connecta't a la xarxa WiFi: ESP32-Sensor01");
+    println("Contrasenya: Rosa1234");
+    println("Esperant connexió... prem S per simular dades");
 
     if (elapsed >= connectDelay) {
       showIntro = false;
+      phaseStartTime = millis(); // start fade-in phase
+      loadNextImage(); // Only load after intro finishes
     }
+    
     return;
   }
 
+  // --------- PHASE 3: Main operation ---------
+  // Sensor reading
   int d = getDistance();
   if (d != -1) distance = d;
 
   updateAlpha();
-  
-    if (waitingForNext) {
-      loadNextImage();
-      lastBlurredImage = null;
-      lastBlurredDistance = -1;
-      waitingForNext = false;
-    }
+  updateBlurLevel();
 
-  if (currentImage != null) {
-      targetBlur = map(distance, minFocusDistance, maxDistance, 0, maxBlur);
-      targetBlur = constrain(targetBlur, 0, maxBlur);
-      blurLevel = lerp(blurLevel, targetBlur, blurLerpSpeed);
-      
-      if (abs(blurLevel - lastBlurredDistance) > 1 || lastBlurredImage == null) {
-        lastBlurredImage = getBlurredVersion(currentImage, blurLevel);
-        lastBlurredDistance = int(blurLevel);
-      }
+  if (currentImage != null && sharpImage != null && blurredImage != null) {
     tint(255, alpha);
-    image(lastBlurredImage, width / 2, height / 2);
-    //noTint();    
+    blendImages(sharpImage, blurredImage, blurLevel / maxBlur);
+    noTint();
   }
 
   drawInfo();
 }
 
+/*
+  // Only draw image if we have both versions
+  if (currentImage != null && currentBlurred != null) {
+    // Calculate blur blend factor: 0 = sharp, 1 = fully blurred
+    float blurFactor = map(distance, minFocusDistance, maxDistance, 0, 1);
+    blurFactor = constrain(blurFactor, 0, 1);
+
+    // First draw the sharp image with alpha based on sharpness
+    tint(255, alpha * (1 - blurFactor));
+    image(currentImage, width / 2, height / 2);
+
+    // Then draw the blurred image on top with complementary alpha
+    tint(255, alpha * blurFactor);
+    image(currentBlurred, width / 2, height / 2);
+
+    noTint(); // Reset tint
+  }
+
+  // Overlay info
+  drawInfo();
+
+  // Handle next image if needed
+  if (waitingForNext) {
+    loadNextImage();
+    waitingForNext = false;
+  }
+}
+*/
 //////////////////////
 void updateAlpha() {
   int now = millis();
@@ -120,16 +173,31 @@ void updateAlpha() {
       alpha = map(elapsed, 0, fadeDuration, 255, 0);
       if (elapsed >= fadeDuration) {
         alpha = 0;
-        waitingForNext = true;
-        //loadNextImage();
+        //waitingForNext = true;
+        loadNextImage();
         phase = 0;
         phaseStartTime = now;
       }
       break;
   }
 }
+////////--/////////////
+void updateBlurLevel() {
+  targetBlur = map(distance, minFocusDistance, maxDistance, 0, maxBlur);
+  targetBlur = constrain(targetBlur, 0, maxBlur);
+  blurLevel = lerp(blurLevel, targetBlur, blurLerpSpeed);
+}
+
+void blendImages(PImage sharp, PImage blur, float amt) {
+  amt = constrain(amt, 0, 1);
+  tint(255, alpha * (1 - amt));
+  image(sharp, width / 2, height / 2);
+  tint(255, alpha * amt);
+  image(blur, width / 2, height / 2);
+}
 
 //////////////////
+/*
 PImage getBlurredVersion(PImage img, float blurAmt) {
   if (img == null) return null;
   blurAmt = constrain(blurAmt, 0, maxBlur);
@@ -140,7 +208,7 @@ PImage getBlurredVersion(PImage img, float blurAmt) {
   pg.endDraw();
   return pg.get();
 }
-
+*/
 //////////////////
 void drawInfo() {
   textAlign(RIGHT, TOP);
@@ -159,11 +227,18 @@ void drawInfo() {
 
 /////////////////////
 void keyPressed() {
-  if (showIntro && (key == 's' || key == 'S')) {
+  if (key == 's' || key == 'S') {
     setSimulate(true);
-    showIntro = false;
-    println("Simulació activada manualment");
+   if (loadingImages) return; // don't skip during loading
+
+    if (showIntro) {
+      showIntro = false;
+      phaseStartTime = millis();
+      loadNextImage();
+      println("Simulació activada manualment");
+    }
   }
+ 
   if (key == 'c' || key == 'C') {
     if (distance > 0) {
       minFocusDistance = distance;

@@ -41,7 +41,7 @@ int getDistance() {
 
   // Real sensor read
   try {
-    String[] result = loadStrings("http://192.168.10.1/data");
+    String[] result = loadStrings("http://192.168.10.3/data");
     if (result != null && result.length > 0) {
       incomingData = result[0].trim();
       if (incomingData.equals("Out of range")) return maxDistance;

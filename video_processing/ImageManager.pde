@@ -2,50 +2,66 @@ import java.util.Collections;
 
 ArrayList<String> imageFilenames = new ArrayList<String>();
 ArrayList<Integer> order = new ArrayList<Integer>();
+
+ArrayList<PImage> images = new ArrayList<PImage>();
 int currentIndex = 0;
+
 PImage currentImage;
+PImage currentBlurred;
+
 
 ////////////////////////
 void loadImages() {
-  imageFilenames.clear();
   File folder = new File(dataPath(""));
   File[] files = folder.listFiles();
-
-  if (files == null) {
-    println("⚠️ No image files found.");
-    return;
-  }
+  if (files == null) return;
 
   for (File file : files) {
-    String name = file.getName().toLowerCase();
-    if (name.endsWith(".png") || name.endsWith(".jpg")) {
-      imageFilenames.add(file.getName());
+    if (file.getName().toLowerCase().endsWith(".png")) {
+      PImage img = loadImage(file.getName());
+      if (img != null) {
+        img.resize(800, 800);  // scale to fit 800x800 box
+        images.add(img);
+      }
     }
   }
-
-  println("📷 " + imageFilenames.size() + " image filenames loaded.");
 }
 
 
 ////////////////////////
 void shuffleOrder() {
   order.clear();
-  for (int i = 0; i < imageFilenames.size(); i++) {
+  for (int i = 0; i < images.size(); i++) {
     order.add(i);
   }
   Collections.shuffle(order);
-  currentIndex = 0;
 }
 
 ////////////////////////
 void loadNextImage() {
-  if (imageFilenames.size() == 0) return;
+  if (order.size() == 0) shuffleOrder();
+  int index = order.remove(0);
+  currentImage = images.get(index);
 
-  if (currentImage != null) {
-    currentImage = null; // release previous image
-    System.gc(); // optional, helps memory cleanup
-  }
+  // Pre-blur version
+  sharpImage = currentImage;
+  blurredImage = getBlurredVersion(currentImage, maxBlur);
+}
+////////////////////
+PImage getBlurredVersion(PImage img, float blurAmt) {
+  if (img == null) return null;
+  blurAmt = constrain(blurAmt, 0, 10); // You can adjust max blur here if needed
 
+  PGraphics pg = createGraphics(img.width, img.height);
+  pg.beginDraw();
+  pg.image(img, 0, 0);
+  pg.filter(BLUR, blurAmt);
+  pg.endDraw();
+
+  return pg.get();
+}
+
+/*
   String nextFile = imageFilenames.get(order.get(currentIndex));
   PImage loaded = loadImage(nextFile);
 
@@ -60,7 +76,7 @@ void loadNextImage() {
 
   phase = 0;
   phaseStartTime = millis();
-}
+}*/
 
 //////////HELPERS//////////////
 PImage scaleToFit(PImage img, int maxW, int maxH) {
